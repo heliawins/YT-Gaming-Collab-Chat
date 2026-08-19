@@ -47,7 +47,7 @@
       padding: 20px;
       border-radius: 8px;
     }
-    select, input, button {
+    select, input, textarea, button {
       width: 100%;
       padding: 10px;
       margin-bottom: 10px;
@@ -56,6 +56,11 @@
       background: #0f111a;
       color: var(--text);
       box-sizing: border-box;
+      font-family: inherit;
+    }
+    textarea {
+      resize: vertical;
+      min-height: 60px;
     }
     input[type="file"] {
       padding: 6px;
@@ -80,11 +85,25 @@
       padding: 15px;
       margin-bottom: 10px;
       display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .room-header {
+      display: flex;
       justify-content: space-between;
       align-items: center;
     }
     .room-info h4 { margin: 0 0 5px 0; color: var(--accent); }
     .room-info p { margin: 0; font-size: 0.85rem; color: var(--subtext); }
+    .room-bio {
+      background: #0f111a;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      color: #c0c5dced;
+      margin: 0;
+      border-left: 3px solid var(--accent);
+    }
     .badge {
       background: var(--green);
       color: black;
@@ -176,7 +195,7 @@
       width: 100%;
       height: 100%;
       background: rgba(0, 0, 0, 0.85);
-      display: none;
+      display: flex;
       justify-content: center;
       align-items: center;
       z-index: 1000;
@@ -188,7 +207,7 @@
       padding: 25px;
       max-width: 600px;
       width: 90%;
-      max-height: 80vh;
+      max-height: 85vh;
       overflow-y: auto;
       position: relative;
       box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
@@ -222,13 +241,13 @@
     <!-- Left Column: Profile & Host -->
     <div class="panel">
       <h3>1. Your Profile</h3>
-      <input type="text" id="username" placeholder="Display Name / YT Name">
+      <input type="text" id="username" placeholder="Display Name / YT Name" readonly>
+      <input type="text" id="discord-link" placeholder="Discord Username (Optional)" readonly>
       
-      <label style="font-size:0.8rem; color:var(--subtext);">Upload Profile Picture (Optional)</label>
-      <input type="file" id="avatar-file" accept="image/*">
-
-      <input type="text" id="discord-link" placeholder="Discord Username or Link (Optional)">
-      <button class="btn-secondary" onclick="openModal('user-setup-modal')" style="font-size:0.8rem; margin-top:5px;">Edit Profile Setup</button>
+      <label style="font-size:0.8rem; color:var(--subtext);">About Me / Looking For:</label>
+      <textarea id="user-bio" readonly placeholder="Your description..."></textarea>
+      
+      <button class="btn-secondary" onclick="openModal('user-setup-modal')" style="font-size:0.8rem; margin-top:5px;">Edit Profile</button>
 
       <h3 style="margin-top:20px;">2. Host a Call / Room</h3>
       <label style="font-size:0.8rem; color:var(--subtext);">Gaming Niche</label>
@@ -256,7 +275,6 @@
 
     <!-- Center Column: Room Browser -->
     <div class="panel">
-      
       <!-- A-ADS SINGLE BANNER (2452702) -->
       <div class="ad-container">
         <div id="frame" style="width: 728px; margin: auto; position: relative; z-index: 99998; height: auto;">
@@ -289,13 +307,10 @@
       </p>
 
       <!-- A-ADS AD UNIT 2452705 -->
-      <!-- BEGIN AADS AD UNIT 2452705 -->
       <div id="frame" style="width: 100%; margin: auto; position: relative; z-index: 99998;">
         <iframe data-aa='2452705' src='//acceptable.a-ads.com/2452705/?size=adaptive' style='border:0px; padding:0; width:100%; min-height:250px; overflow:hidden; background-color: transparent;'></iframe>
       </div>
-      <!-- END AADS AD UNIT 2452705 -->
     </div>
-
   </div>
 
   <!-- Bottom Stage: Live Voice/Video Call Window -->
@@ -335,21 +350,27 @@
   </div>
 
   <!-- Mandatory Pre-Join Setup Modal Popup -->
-  <div id="user-setup-modal" class="modal-overlay" style="display: flex;">
-    <div class="modal-content" style="max-width: 420px;">
-      <h2>Set Up Your Profile</h2>
-      <p style="color:var(--subtext); font-size:0.85rem; margin-bottom:15px;">You must enter a display name before joining or hosting calls.</p>
+  <div id="user-setup-modal" class="modal-overlay">
+    <div class="modal-content" style="max-width: 480px;">
+      <h2>Create Your Profile</h2>
+      <p style="color:var(--subtext); font-size:0.85rem; margin-bottom:15px;">Set up your profile before joining or hosting calls.</p>
 
-      <label style="font-size:0.85rem; font-weight:bold;">Display Name (Gamer Tag, YT Name, Alias) <span style="color:var(--accent);">*</span></label>
+      <label style="font-size:0.85rem; font-weight:bold;">Date of Birth <span style="color:var(--accent);">*</span></label>
+      <input type="date" id="modal-dob" required>
+
+      <label style="font-size:0.85rem; font-weight:bold;">Display Name (Gamer Tag, Alias) <span style="color:var(--accent);">*</span></label>
       <input type="text" id="modal-display-name" placeholder="e.g. NinjaGamer123">
+
+      <label style="font-size:0.85rem; color:var(--subtext); margin-top:5px; display:block;">Description / What friends are you looking for?</label>
+      <textarea id="modal-description" placeholder="I like playing Minecraft Survival and looking for chill people to build a server with..."></textarea>
 
       <label style="font-size:0.85rem; color:var(--subtext); margin-top:5px; display:block;">Upload Profile Picture (Optional)</label>
       <input type="file" id="modal-avatar-file" accept="image/*">
 
-      <label style="font-size:0.85rem; color:var(--subtext); margin-top:5px; display:block;">Discord Username or Server (Optional)</label>
+      <label style="font-size:0.85rem; color:var(--subtext); margin-top:5px; display:block;">Discord Username (Optional)</label>
       <input type="text" id="modal-discord-tag" placeholder="e.g. GamerTag#1234 or @gamertag">
 
-      <p id="setup-error" style="color:var(--accent); font-size:0.8rem; display:none; margin: 5px 0 10px 0;">Display Name is required to continue!</p>
+      <p id="setup-error" style="color:var(--accent); font-size:0.8rem; display:none; margin: 5px 0 10px 0;"></p>
 
       <button id="btn-save-profile" style="margin-top:10px;">Save Profile & Continue</button>
     </div>
@@ -359,42 +380,7 @@
   <footer>
     <p>By using GamerCollab, you agree to keep the community safe, friendly, and toxic-free.</p>
     <p>Bullying, harassment, or inappropriate content will result in an immediate ban. <strong>Users must be 13 years of age or older.</strong></p>
-    <p>
-      <a href="#" onclick="openModal('guidelines-modal'); return false;">Community Guidelines</a> | 
-      <a href="#" onclick="openModal('privacy-modal'); return false;">Privacy Policy</a>
-    </p>
   </footer>
-
-  <!-- Community Guidelines Modal Popup -->
-  <div id="guidelines-modal" class="modal-overlay">
-    <div class="modal-content">
-      <button class="modal-close" onclick="closeModal('guidelines-modal')">&times;</button>
-      <h2>Community Guidelines</h2>
-      <p>Welcome to GamerCollab! To keep our community safe and enjoyable for all creators, you must follow these rules:</p>
-      <ul>
-        <li><strong>Age Requirement:</strong> You must be 13 years of age or older to use this service.</li>
-        <li><strong>Zero Tolerance for Abuse:</strong> Bullying, harassment, hate speech, threats, or discrimination of any kind will not be tolerated.</li>
-        <li><strong>Family-Safe Content:</strong> Explicit, violent, or NSFW profile pictures, names, or stream content are strictly prohibited.</li>
-        <li><strong>No Spam or Scams:</strong> Do not use Discord links or room titles to advertise scams, malware, or unauthorized promotions.</li>
-        <li><strong>Enforcement:</strong> Violating these rules will result in immediate room removal and a permanent ban from matchmaking.</li>
-      </ul>
-    </div>
-  </div>
-
-  <!-- Privacy Policy Modal Popup -->
-  <div id="privacy-modal" class="modal-overlay">
-    <div class="modal-content">
-      <button class="modal-close" onclick="closeModal('privacy-modal')">&times;</button>
-      <h2>Privacy Policy</h2>
-      <p>GamerCollab values your privacy. This policy explains how we handle your information:</p>
-      <ul>
-        <li><strong>Data We Handle:</strong> We temporarily process the username, profile picture, game preference, and Discord contact details you enter into the room creation form.</li>
-        <li><strong>How Data is Used:</strong> Your room details are temporarily stored in Firebase solely to display active calls in the live matchmaking lobby.</li>
-        <li><strong>Peer-to-Peer Connections:</strong> Video and audio calls are established using PeerJS. Your IP address may be processed temporarily by your browser to connect directly with other players.</li>
-        <li><strong>Data Storage & Deletion:</strong> Your room data automatically deletes from our database the moment you leave or close your browser tab. We do not store permanent user profiles or sell your data.</li>
-      </ul>
-    </div>
-  </div>
 
   <!-- Firebase Realtime Database & PeerJS Engine -->
   <script type="module">
@@ -426,18 +412,41 @@
       });
     }
 
+    // Modal Save Logic with Age Verification
     document.getElementById('btn-save-profile').addEventListener('click', async () => {
+      const dobInput = document.getElementById('modal-dob').value;
       const name = document.getElementById('modal-display-name').value.trim();
+      const desc = document.getElementById('modal-description').value.trim();
       const discord = document.getElementById('modal-discord-tag').value.trim();
       const errorMsg = document.getElementById('setup-error');
 
-      if (!name) {
+      // Check required fields
+      if (!dobInput || !name) {
+        errorMsg.innerText = 'Date of birth and Display Name are required to continue!';
+        errorMsg.style.display = 'block';
+        return;
+      }
+
+      // Age verification calculation
+      const dobDate = new Date(dobInput);
+      const today = new Date();
+      let age = today.getFullYear() - dobDate.getFullYear();
+      const m = today.getMonth() - dobDate.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < dobDate.getDate())) {
+        age--;
+      }
+
+      if (age < 13) {
+        errorMsg.innerText = 'You must be at least 13 years or older to use this site.';
         errorMsg.style.display = 'block';
         return;
       }
 
       errorMsg.style.display = 'none';
+      
+      // Populate sidebar profile
       document.getElementById('username').value = name;
+      document.getElementById('user-bio').value = desc || "Ready to game!";
       document.getElementById('discord-link').value = discord;
 
       const modalFileInput = document.getElementById('modal-avatar-file');
@@ -445,7 +454,7 @@
         uploadedAvatarDataUrl = await readFileAsDataURL(modalFileInput.files[0]);
       }
 
-      closeModal('user-setup-modal');
+      document.getElementById('user-setup-modal').style.display = 'none';
     });
 
     let userIp = null;
@@ -457,44 +466,11 @@
         const response = await fetch('https://api.ipify.org?format=json');
         const data = await response.json();
         userIp = data.ip.replace(/\./g, '_');
-
-        const banRef = ref(db, 'banned_ips/' + userIp);
-        onValue(banRef, (snapshot) => {
-          if (snapshot.exists() && snapshot.val() === true) {
-            isBanned = true;
-            document.body.innerHTML = `
-              <div style="text-align:center; padding:100px 20px; color:#ff4655; font-family:sans-serif;">
-                <h1>Access Denied</h1>
-                <p style="color:#ffffff;">Your IP address has been banned for violating community guidelines.</p>
-              </div>
-            `;
-          }
-        });
       } catch (err) {
         console.error("IP verification error:", err);
       }
     }
     checkIpBan();
-
-    window.sendReport = async function(reportedHostIp) {
-      if (!userIp) return alert("Could not verify IP.");
-
-      const targetIp = reportedHostIp || currentHostIp || "Unknown";
-      const reportRef = ref(db, 'reports/' + Date.now());
-      
-      try {
-        await set(reportRef, {
-          reporterIp: userIp,
-          accusedHostIp: targetIp,
-          roomTitle: document.getElementById('current-room-title').innerText,
-          timestamp: new Date().toISOString()
-        });
-        alert("User reported. Our team will review the log.");
-      } catch (err) {
-        console.error("Error submitting report:", err);
-        alert("Failed to submit report.");
-      }
-    };
 
     const myPeerId = 'gcollab-' + Math.random().toString(36).substr(2, 9);
     const peer = new Peer(myPeerId);
@@ -514,23 +490,8 @@
       document.getElementById(id).style.display = 'none';
     };
 
-    window.addEventListener('click', (event) => {
-      if (event.target.classList.contains('modal-overlay') && event.target.id !== 'user-setup-modal') {
-        event.target.style.display = 'none';
-      }
-    });
-
     async function getUploadedAvatarUrl(username) {
-      if (uploadedAvatarDataUrl) {
-        return uploadedAvatarDataUrl;
-      }
-
-      const fileInput = document.getElementById('avatar-file');
-      if (fileInput && fileInput.files && fileInput.files[0]) {
-        uploadedAvatarDataUrl = await readFileAsDataURL(fileInput.files[0]);
-        return uploadedAvatarDataUrl;
-      }
-
+      if (uploadedAvatarDataUrl) return uploadedAvatarDataUrl;
       return `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
     }
 
@@ -581,17 +542,20 @@
         const card = document.createElement('div');
         card.className = 'room-card';
         card.innerHTML = `
-          <div style="display:flex; align-items:center; gap:12px;">
-            <img src="${room.hostAvatar}" class="avatar-img" style="width:45px; height:45px; margin:0;">
-            <div class="room-info">
-              <h4>${room.game} <span class="badge">${room.niche}</span></h4>
-              <p><strong>Host:</strong> ${room.hostName} | <strong>Max Cap:</strong> ${room.maxCapacity} Players</p>
+          <div class="room-header">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <img src="${room.hostAvatar}" class="avatar-img" style="width:45px; height:45px; margin:0;">
+              <div class="room-info">
+                <h4>${room.game} <span class="badge">${room.niche}</span></h4>
+                <p><strong>Host:</strong> ${room.hostName} | <strong>Max Cap:</strong> ${room.maxCapacity} Players</p>
+              </div>
+            </div>
+            <div style="text-align:right; display:flex; gap:5px; align-items:center;">
+              ${room.discord && room.discord !== 'None' ? `<button class="btn-discord btn-discord-link" style="width:auto; padding:5px 10px;">Discord</button>` : ''}
+              <button class="btn-join" style="width:auto; padding:6px 15px;">Join Call</button>
             </div>
           </div>
-          <div style="text-align:right; display:flex; gap:5px; align-items:center;">
-            ${room.discord && room.discord !== 'None' ? `<button class="btn-discord btn-discord-link" style="width:auto; padding:5px 10px;">Discord</button>` : ''}
-            <button class="btn-join" style="width:auto; padding:6px 15px;">Join Call</button>
-          </div>
+          ${room.bio ? `<p class="room-bio"><strong>About Host:</strong> ${room.bio}</p>` : ''}
         `;
 
         if (room.discord && room.discord !== 'None') {
@@ -618,8 +582,6 @@
     document.getElementById('btn-video').addEventListener('click', toggleVideo);
 
     async function hostCall() {
-      if (isBanned) return alert("You are banned from using this platform.");
-
       const ytName = document.getElementById('username').value.trim();
       if (!ytName) {
         openModal('user-setup-modal');
@@ -627,6 +589,7 @@
       }
 
       const discord = document.getElementById('discord-link').value.trim() || 'None';
+      const bio = document.getElementById('user-bio').value.trim() || 'Ready to game!';
       const niche = document.getElementById('host-niche').value;
       const game = document.getElementById('host-game').value.trim() || niche;
       const maxCap = document.getElementById('host-capacity').value;
@@ -634,7 +597,6 @@
       const avatarSrc = await getUploadedAvatarUrl(ytName);
 
       await startMedia();
-
       currentHostIp = userIp;
 
       myRoomRef = ref(db, 'active_rooms/' + myPeerId);
@@ -644,6 +606,7 @@
         hostAvatar: avatarSrc,
         hostIp: userIp,
         discord: discord,
+        bio: bio,
         niche: niche,
         game: game,
         maxCapacity: maxCap
@@ -652,16 +615,13 @@
       document.getElementById('local-yt-name').innerText = ytName;
       document.getElementById('local-avatar').src = avatarSrc;
       document.getElementById('current-room-title').innerText = `Active Call: ${game} (${niche})`;
-      document.getElementById('room-discord-display').innerText = discord !== 'None' ? `Discord: ${discord}` : '';
-
+      
       const stage = document.getElementById('call-stage');
       stage.style.display = 'block';
       stage.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     async function joinRoom(room) {
-      if (isBanned) return alert("You are banned from using this platform.");
-
       const ytName = document.getElementById('username').value.trim();
       if (!ytName) {
         openModal('user-setup-modal');
@@ -669,10 +629,7 @@
       }
 
       const avatarSrc = await getUploadedAvatarUrl(ytName);
-
       await startMedia();
-
-      currentHostIp = room.hostIp || "Unknown";
 
       document.getElementById('local-yt-name').innerText = ytName;
       document.getElementById('local-avatar').src = avatarSrc;
@@ -681,7 +638,6 @@
       document.getElementById('remote-avatar').src = room.hostAvatar;
       document.getElementById('remote-avatar').style.opacity = "1";
       document.getElementById('current-room-title').innerText = `Joined Call: ${room.game} (${room.niche})`;
-      document.getElementById('room-discord-display').innerText = room.discord !== 'None' ? `Discord: ${room.discord}` : '';
 
       currentCall = peer.call(room.peerId, localStream);
 
@@ -696,14 +652,27 @@
       stage.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    // Requests microphone permission ONLY when joining/hosting a call
     async function startMedia() {
       if (localStream) return;
+      if (!window.isSecureContext) {
+        alert("Security Error: Microphones are blocked on HTTP! You must use an HTTPS connection or localhost.");
+        return;
+      }
+
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         document.getElementById('local-video').srcObject = localStream;
       } catch (e) {
-        alert("Microphone permission was denied.");
+        console.error("Media error details:", e);
+        if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
+          alert("Permission Error: The browser or operating system blocked microphone access. Check your site permissions or Windows privacy settings.");
+        } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
+          alert("Hardware Error: No working microphone was detected on your system.");
+        } else if (e.name === 'NotReadableError' || e.name === 'TrackStartError') {
+          alert("Hardware Conflict: Your microphone is being used by another application (e.g. Discord, OBS, Zoom). Close them and try again.");
+        } else {
+          alert(`Microphone Error (${e.name}): ${e.message}`);
+        }
       }
     }
 
@@ -713,11 +682,8 @@
         localStream.getTracks().forEach(track => track.stop());
         localStream = null;
       }
-
       isVideoOn = false;
       document.getElementById('btn-video').innerText = 'Camera On';
-
-      currentHostIp = "Unknown";
       document.getElementById('call-stage').style.display = 'none';
       document.getElementById('local-video').srcObject = null;
       document.getElementById('remote-video').srcObject = null;
@@ -733,20 +699,15 @@
       document.getElementById('btn-audio').innerText = isMuted ? 'Unmute Mic' : 'Mute Mic';
     }
 
-    // Requests camera permission ONLY when explicitly clicking "Camera On"
     async function toggleVideo() {
       if (!localStream) return;
-
       let videoTrack = localStream.getVideoTracks()[0];
-
       if (!videoTrack) {
         try {
           const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
           videoTrack = videoStream.getVideoTracks()[0];
           localStream.addTrack(videoTrack);
-
           document.getElementById('local-video').srcObject = localStream;
-
           if (currentCall && currentCall.peerConnection) {
             const senders = currentCall.peerConnection.getSenders();
             const videoSender = senders.find(s => s.track && s.track.kind === 'video');
@@ -756,7 +717,6 @@
               currentCall.peerConnection.addTrack(videoTrack, localStream);
             }
           }
-
           isVideoOn = true;
           document.getElementById('btn-video').innerText = 'Camera Off';
         } catch (e) {
