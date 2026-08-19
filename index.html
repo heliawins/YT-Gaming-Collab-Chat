@@ -3,208 +3,447 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GamerCollab | Global Lobby</title>
+  <title>GamerCollab | Live Creator Matchmaking (13+)</title>
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
-    /* ALL YOUR PREVIOUS CSS GOES HERE */
-    :root { --bg: #0f111a; --card: #1a1d2e; --accent: #ff4655; --green: #00e676; --text: #ffffff; --subtext: #8b92b0; }
-    body { margin: 0; font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
-    header { background: var(--card); padding: 15px 30px; border-bottom: 2px solid var(--accent); }
-    h1 { margin: 0; color: var(--accent); }
-    .container { max-width: 1200px; margin: 20px auto; display: grid; grid-template-columns: 300px 1fr; gap: 20px; }
-    .panel { background: var(--card); padding: 20px; border-radius: 8px; }
-    input, button { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 5px; border: 1px solid #2e344e; background: #0f111a; color: white; }
-    button { background: var(--accent); cursor: pointer; font-weight: bold; border: none; }
+    :root {
+      --bg: #0f111a;
+      --card: #1a1d2e;
+      --accent: #ff4655;
+      --green: #00e676;
+      --text: #ffffff;
+      --subtext: #8b92b0;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    header {
+      background: var(--card);
+      padding: 15px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid var(--accent);
+    }
+    h1 { margin: 0; font-size: 1.5rem; color: var(--accent); }
+    .container {
+      max-width: 1200px;
+      margin: 20px auto;
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: 300px 1fr 250px;
+      gap: 20px;
+      flex: 1;
+    }
+    .panel {
+      background: var(--card);
+      padding: 20px;
+      border-radius: 8px;
+    }
+    select, input, button {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      border: 1px solid #2e344e;
+      background: #0f111a;
+      color: var(--text);
+      box-sizing: border-box;
+    }
+    button {
+      background: var(--accent);
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+    }
     button:hover { opacity: 0.9; }
-    .room-card { background: #151824; border: 1px solid #2e344e; padding: 15px; margin-bottom: 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
-    .room-card h4 { margin: 0 0 5px 0; color: var(--green); }
-    #call-stage { max-width: 1200px; margin: 20px auto; padding: 20px; background: #151824; border: 2px solid var(--accent); border-radius: 10px; display: none; }
-    .video-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; }
-    video { width: 100%; height: 200px; background: black; border-radius: 6px; object-fit: cover; }
+    .btn-secondary { background: #3a3f58; }
+    .btn-report { background: #ff9800; }
+    .room-card {
+      background: #151824;
+      border: 1px solid #2e344e;
+      border-radius: 6px;
+      padding: 15px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .room-info h4 { margin: 0 0 5px 0; color: var(--green); }
+    .room-info p { margin: 0; font-size: 0.85rem; color: var(--subtext); }
+    .badge {
+      background: var(--green);
+      color: black;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 0.75rem;
+    }
+    .video-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
+    }
+    .player-box {
+      background: #0f111a;
+      border: 1px solid #2e344e;
+      border-radius: 8px;
+      padding: 15px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .avatar-img {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      border: 2px solid var(--accent);
+      margin-bottom: 10px;
+      object-fit: cover;
+      background: #1a1d2e;
+    }
+    .yt-name {
+      font-weight: bold;
+      font-size: 1.1rem;
+      color: var(--text);
+      margin-bottom: 5px;
+    }
+    video {
+      width: 100%;
+      height: 150px;
+      background: #000;
+      border-radius: 6px;
+      object-fit: cover;
+      margin-top: 10px;
+    }
+    .ad-banner {
+      background: #151824;
+      border: 1px dashed #3a3f58;
+      border-radius: 6px;
+      padding: 10px;
+      text-align: center;
+      margin-bottom: 15px;
+      min-height: 100px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    #call-stage {
+      max-width: 1200px;
+      margin: 30px auto 50px auto;
+      padding: 20px;
+      background: #151824;
+      border: 2px solid var(--accent);
+      border-radius: 10px;
+      display: none;
+    }
+    footer {
+      text-align: center;
+      padding: 20px;
+      color: var(--subtext);
+      font-size: 0.85rem;
+      border-top: 1px solid #2e344e;
+      background: #0f111a;
+      margin-top: auto;
+    }
   </style>
 </head>
 <body>
 
   <header>
     <h1>GamerCollab</h1>
-    <span>Global Creator Lobby</span>
+    <span>Live Creator Matchmaking (13+)</span>
   </header>
 
   <div class="container">
-    <!-- Left: Profile -->
+    
+    <!-- Left Column: Profile & Host -->
     <div class="panel">
       <h3>1. Your Profile</h3>
-      <input type="text" id="username" placeholder="Your Channel Name">
-      
-      <h3>2. Host a Room</h3>
-      <input type="text" id="room-title" placeholder="e.g. Minecraft Survival Duo">
-      <button id="btn-host">Host Public Room</button>
+      <input type="text" id="username" placeholder="YouTube or Twitch Name">
+      <input type="text" id="avatar-url" placeholder="Profile Pic Image URL (Optional)">
+
+      <h3>2. Host a Call</h3>
+      <label style="font-size:0.8rem; color:var(--subtext);">Gaming Niche</label>
+      <select id="host-niche">
+        <option value="Sandbox">Sandbox (Minecraft, Roblox)</option>
+        <option value="Racing">Racing (Sims, Forza, NFS)</option>
+        <option value="Survival">Survival (Rust, DayZ, Ark)</option>
+        <option value="RPG Fantasy">RPG / Fantasy</option>
+        <option value="FPS Shooters">FPS / Shooters (Fortnite, COD)</option>
+        <option value="Just Chatting">Just Chatting / Podcast</option>
+      </select>
+
+      <label style="font-size:0.8rem; color:var(--subtext);">Specific Game / Topic Title</label>
+      <input type="text" id="host-game" placeholder="e.g. Unique Redstone Build Tutorial">
+
+      <button id="btn-host-call">Host Public Call</button>
     </div>
 
-    <!-- Right: Global Browser -->
+    <!-- Center Column: Global Lobby -->
     <div class="panel">
-      <h3>Live Global Lobby</h3>
-      <div id="lobby-list">
-        <p style="color:var(--subtext);">Loading global rooms...</p>
+      <div class="ad-banner">
+        <span style="font-size:0.75rem; color:var(--subtext);">Sponsored Gaming Ad</span>
+      </div>
+
+      <h3>Live Public Groups</h3>
+      <div id="room-list">
+        <p style="color:var(--subtext);">Connecting to live database...</p>
       </div>
     </div>
+
+    <!-- Right Column: Ads -->
+    <div class="panel">
+      <h3>Sponsored</h3>
+      <div class="ad-banner" style="min-height: 300px;">
+        <span style="font-size:0.75rem; color:var(--subtext);">Partner Sidebar Ad</span>
+      </div>
+    </div>
+
   </div>
 
-  <!-- Call Stage -->
+  <!-- Bottom Stage: Live Call Stage -->
   <div id="call-stage">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-      <h3 style="margin:0; color:var(--accent);">Live Call</h3>
-      <button id="btn-leave" style="width:auto; padding:5px 15px;">Leave Call</button>
-    </div>
-    <div class="video-grid">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #2e344e; padding-bottom:10px;">
       <div>
-        <p>You</p>
-        <video id="local-video" autoplay muted></video>
+        <h3 id="current-room-title" style="margin:0; color:var(--accent);">Active Call Stage</h3>
       </div>
-      <div>
-        <p>Partner</p>
+      <div style="display:flex; gap:10px;">
+        <button id="btn-report-call" class="btn-report" style="width:auto; padding:8px 15px; font-size:0.8rem;" onclick="alert('User reported. Moderation team notified.')">Report User</button>
+        <button id="btn-leave-call" style="background:#ff4655; width:auto; padding:8px 20px;">Leave Call</button>
+      </div>
+    </div>
+
+    <div class="video-grid" id="video-grid">
+      <!-- Player 1 Box (Local) -->
+      <div class="player-box">
+        <img id="local-avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=Host" class="avatar-img" alt="Avatar">
+        <div class="yt-name" id="local-yt-name">Your Channel Name</div>
+        <video id="local-video" autoplay muted></video>
+        <div style="display:flex; gap:5px; margin-top:10px; width:100%;">
+          <button id="btn-audio" class="btn-secondary" style="font-size:0.75rem;">Mute Mic</button>
+          <button id="btn-video" class="btn-secondary" style="font-size:0.75rem;">Camera On</button>
+        </div>
+      </div>
+
+      <!-- Player 2 Box (Remote) -->
+      <div class="player-box">
+        <img id="remote-avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=Waiting" class="avatar-img" alt="Avatar" style="opacity:0.4;">
+        <div class="yt-name" id="remote-yt-name" style="color:var(--subtext);">Waiting for Partner...</div>
         <video id="remote-video" autoplay></video>
       </div>
     </div>
   </div>
 
-  <!-- FIREBASE MODULES -->
+  <footer>
+    <p>By using GamerCollab, you agree to keep the community safe, friendly, and toxic-free. <strong>Users must be 13+.</strong></p>
+  </footer>
+
+  <!-- Firebase & PeerJS Integration -->
   <script type="module">
-    // Import Firebase tools
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // ==========================================
-    // STEP 3: PASTE YOUR FIREBASE CONFIG HERE!
-    // ==========================================
+    // YOUR EXACT FIREBASE CREDENTIALS
     const firebaseConfig = {
-      apiKey: "PASTE_YOUR_API_KEY_HERE",
-      authDomain: "PASTE_YOUR_DOMAIN_HERE",
-      databaseURL: "PASTE_YOUR_DATABASE_URL_HERE",
-      projectId: "PASTE_YOUR_PROJECT_ID_HERE",
-      storageBucket: "PASTE_YOUR_STORAGE_BUCKET_HERE",
-      messagingSenderId: "PASTE_YOUR_SENDER_ID_HERE",
-      appId: "PASTE_YOUR_APP_ID_HERE"
+      apiKey: "AIzaSyD50iZeqmamssUTcidN59GyIFs1c6hK7XI",
+      authDomain: "yt-gaming-collab-chat-6502d.firebaseapp.com",
+      databaseURL: "https://yt-gaming-collab-chat-6502d-default-rtdb.firebaseio.com",
+      projectId: "yt-gaming-collab-chat-6502d",
+      storageBucket: "yt-gaming-collab-chat-6502d.firebasestorage.app",
+      messagingSenderId: "235925390073",
+      appId: "1:235925390073:web:580231468ec70ecd095828",
+      measurementId: "G-EKZ8B3Z82N"
     };
-    // ==========================================
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // Setup Video Peer
+    // Setup Unique Peer ID
     const myPeerId = 'gcollab-' + Math.random().toString(36).substr(2, 9);
     const peer = new Peer(myPeerId);
-    
+
     let localStream = null;
     let currentCall = null;
     let myRoomRef = null;
+    let isMuted = false;
+    let isVideoOn = false;
 
-    // Listen for global list updates
-    const lobbyRef = ref(db, 'active_rooms');
-    onValue(lobbyRef, (snapshot) => {
-      const rooms = snapshot.val();
-      const lobbyDiv = document.getElementById('lobby-list');
-      lobbyDiv.innerHTML = '';
-
-      if (!rooms) {
-        lobbyDiv.innerHTML = '<p style="color:var(--subtext);">No rooms right now. Be the first to host!</p>';
-        return;
-      }
-
-      Object.keys(rooms).forEach(key => {
-        const room = rooms[key];
-        // Don't show our own room in the join list
-        if (room.peerId === myPeerId) return; 
-
-        const card = document.createElement('div');
-        card.className = 'room-card';
-        card.innerHTML = `
-          <div>
-            <h4>${room.title}</h4>
-            <span style="font-size:0.8rem; color:var(--subtext);">Host: ${room.host}</span>
-          </div>
-          <button style="width:auto; padding:8px 15px; background:var(--green); color:black;" data-target="${room.peerId}">Join</button>
-        `;
-        
-        // Add click event to the join button
-        card.querySelector('button').addEventListener('click', () => joinRoom(room.peerId));
-        lobbyDiv.appendChild(card);
-      });
-    });
-
-    // Handle Hosting
-    document.getElementById('btn-host').addEventListener('click', async () => {
-      const title = document.getElementById('room-title').value || "Chilling & Gaming";
-      const host = document.getElementById('username').value || "Anonymous";
-
-      await startMedia();
-      
-      // Push room to the global database
-      myRoomRef = ref(db, 'active_rooms/' + myPeerId);
-      set(myRoomRef, {
-        title: title,
-        host: host,
-        peerId: myPeerId
-      });
-
-      showStage();
-    });
-
-    // Handle Joining
-    async function joinRoom(targetPeerId) {
-      await startMedia();
-      currentCall = peer.call(targetPeerId, localStream);
-      
-      currentCall.on('stream', remoteStream => {
-        document.getElementById('remote-video').srcObject = remoteStream;
-      });
-      showStage();
-    }
-
-    // Answer incoming calls
+    // Listen for incoming calls
     peer.on('call', async (call) => {
       currentCall = call;
       await startMedia();
       call.answer(localStream);
+
       call.on('stream', remoteStream => {
         document.getElementById('remote-video').srcObject = remoteStream;
+        document.getElementById('remote-yt-name').innerText = "Partner Connected!";
+        document.getElementById('remote-yt-name').style.color = "var(--green)";
+        document.getElementById('remote-avatar').style.opacity = "1";
       });
-      
-      // Remove room from public list so a 3rd person doesn't join
+
+      // Once someone connects, remove room from public list so others don't join
       if (myRoomRef) {
         remove(myRoomRef);
       }
     });
 
+    // Listen for global public rooms in Realtime Database
+    const lobbyRef = ref(db, 'active_rooms');
+    onValue(lobbyRef, (snapshot) => {
+      const rooms = snapshot.val();
+      const container = document.getElementById('room-list');
+      container.innerHTML = '';
+
+      if (!rooms) {
+        container.innerHTML = '<p style="color:var(--subtext);">No active group calls right now. Host one on the left!</p>';
+        return;
+      }
+
+      Object.keys(rooms).forEach(key => {
+        const room = rooms[key];
+        // Don't show our own room in our join browser
+        if (room.peerId === myPeerId) return;
+
+        const card = document.createElement('div');
+        card.className = 'room-card';
+        card.innerHTML = `
+          <div style="display:flex; align-items:center; gap:12px;">
+            <img src="${room.hostAvatar}" class="avatar-img" style="width:45px; height:45px; margin:0;">
+            <div class="room-info">
+              <h4>${room.game} <span class="badge">${room.niche}</span></h4>
+              <p><strong>Host:</strong> ${room.hostName}</p>
+            </div>
+          </div>
+          <button style="width:auto; padding:6px 15px; background:var(--green); color:black;" class="btn-join" data-peer="${room.peerId}">Join Call</button>
+        `;
+
+        card.querySelector('.btn-join').addEventListener('click', () => joinRoom(room.peerId, room.hostName, room.hostAvatar));
+        container.appendChild(card);
+      });
+    });
+
+    // Attach Buttons
+    document.getElementById('btn-host-call').addEventListener('click', hostCall);
+    document.getElementById('btn-leave-call').addEventListener('click', leaveRoom);
+    document.getElementById('btn-audio').addEventListener('click', toggleAudio);
+    document.getElementById('btn-video').addEventListener('click', toggleVideo);
+
+    async function hostCall() {
+      const ytName = document.getElementById('username').value.trim() || 'Anonymous Creator';
+      const customAvatar = document.getElementById('avatar-url').value.trim();
+      const niche = document.getElementById('host-niche').value;
+      const game = document.getElementById('host-game').value.trim() || niche;
+      const avatarSrc = customAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(ytName)}`;
+
+      await startMedia();
+
+      // Post room to global database
+      myRoomRef = ref(db, 'active_rooms/' + myPeerId);
+      set(myRoomRef, {
+        peerId: myPeerId,
+        hostName: ytName,
+        hostAvatar: avatarSrc,
+        niche: niche,
+        game: game
+      });
+
+      showStage(ytName, avatarSrc, `Active Host Call: ${game}`);
+    }
+
+    async function joinRoom(targetPeerId, hostName, hostAvatar) {
+      const ytName = document.getElementById('username').value.trim() || 'Anonymous Guest';
+      const customAvatar = document.getElementById('avatar-url').value.trim();
+      const avatarSrc = customAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(ytName)}`;
+
+      await startMedia();
+
+      document.getElementById('remote-yt-name').innerText = hostName;
+      document.getElementById('remote-yt-name').style.color = "var(--green)";
+      document.getElementById('remote-avatar').src = hostAvatar;
+      document.getElementById('remote-avatar').style.opacity = "1";
+
+      currentCall = peer.call(targetPeerId, localStream);
+
+      if (currentCall) {
+        currentCall.on('stream', remoteStream => {
+          document.getElementById('remote-video').srcObject = remoteStream;
+        });
+      }
+
+      showStage(ytName, avatarSrc, `Connected to: ${hostName}`);
+    }
+
     async function startMedia() {
-      if (!localStream) {
+      if (localStream) return;
+      try {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        localStream.getVideoTracks()[0].enabled = false;
         document.getElementById('local-video').srcObject = localStream;
+      } catch (e) {
+        alert("Camera/Microphone permission denied.");
       }
     }
 
-    function showStage() {
-      document.getElementById('call-stage').style.display = 'block';
-      document.getElementById('call-stage').scrollIntoView({ behavior: 'smooth' });
+    function showStage(name, avatar, title) {
+      document.getElementById('local-yt-name').innerText = name;
+      document.getElementById('local-avatar').src = avatar;
+      document.getElementById('current-room-title').innerText = title;
+
+      const stage = document.getElementById('call-stage');
+      stage.style.display = 'block';
+      stage.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    // Leave and Cleanup
-    document.getElementById('btn-leave').addEventListener('click', () => {
+    function leaveRoom() {
       if (currentCall) currentCall.close();
       if (localStream) {
-        localStream.getTracks().forEach(t => t.stop());
+        localStream.getTracks().forEach(track => track.stop());
         localStream = null;
       }
-      if (myRoomRef) remove(myRoomRef); // Delete room from global list
-      
+      if (myRoomRef) {
+        remove(myRoomRef);
+      }
+
       document.getElementById('call-stage').style.display = 'none';
-    });
+      document.getElementById('local-video').srcObject = null;
+      document.getElementById('remote-video').srcObject = null;
+      document.getElementById('remote-yt-name').innerText = "Waiting for Partner...";
+      document.getElementById('remote-yt-name').style.color = "var(--subtext)";
+      document.getElementById('remote-avatar').style.opacity = "0.4";
+    }
 
-    // If they close the tab, delete their room from the database
+    function toggleAudio() {
+      if (!localStream) return;
+      isMuted = !isMuted;
+      localStream.getAudioTracks()[0].enabled = !isMuted;
+      document.getElementById('btn-audio').innerText = isMuted ? 'Unmute Mic' : 'Mute Mic';
+    }
+
+    function toggleVideo() {
+      if (!localStream || !localStream.getVideoTracks().length) return alert("No camera detected.");
+      isVideoOn = !isVideoOn;
+      localStream.getVideoTracks()[0].enabled = isVideoOn;
+      document.getElementById('btn-video').innerText = isVideoOn ? 'Camera Off' : 'Camera On';
+    }
+
+    // Automatically remove room from database if user closes the browser tab
     window.addEventListener('beforeunload', () => {
-      if (myRoomRef) remove(myRoomRef);
+      if (myRoomRef) {
+        remove(myRoomRef);
+      }
     });
-
   </script>
 </body>
 </html>
