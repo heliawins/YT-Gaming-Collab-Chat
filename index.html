@@ -57,6 +57,11 @@
       color: var(--text);
       box-sizing: border-box;
     }
+    input[type="file"] {
+      padding: 6px;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
     button {
       background: var(--accent);
       color: white;
@@ -174,7 +179,7 @@
 
   <header>
     <h1>GamerCollab</h1>
-    <span>Live YouTube & Twitch Creator Matchmaking (13+)</span>
+    <span>Live YouTube Creator Matchmaking (13+)</span>
   </header>
 
   <div class="container">
@@ -182,8 +187,11 @@
     <!-- Left Column: Profile & Host -->
     <div class="panel">
       <h3>1. Your Profile</h3>
-      <input type="text" id="username" placeholder="YouTube or Twitch Name">
-      <input type="text" id="avatar-url" placeholder="Profile Pic Image URL (Optional)">
+      <input type="text" id="username" placeholder="YouTube Channel Name">
+      
+      <label style="font-size:0.8rem; color:var(--subtext);">Upload Profile Picture</label>
+      <input type="file" id="avatar-file" accept="image/*">
+
       <input type="text" id="discord-link" placeholder="Discord Username or Server Link">
 
       <h3>2. Host a Call / Room</h3>
@@ -194,7 +202,6 @@
         <option value="Survival">Survival (Rust, DayZ, Ark)</option>
         <option value="RPG Fantasy">RPG / Fantasy (Elden Ring, Skyrim)</option>
         <option value="FPS Shooters">FPS / Shooters (COD, Valorant, Fortnite)</option>
-        <option value="Just Chatting">Just Chatting / Podcast</option>
       </select>
 
       <label style="font-size:0.8rem; color:var(--subtext);">Specific Game Title</label>
@@ -227,7 +234,6 @@
           <option value="Survival">Survival</option>
           <option value="RPG Fantasy">RPG / Fantasy</option>
           <option value="FPS Shooters">FPS / Shooters</option>
-          <option value="Just Chatting">Just Chatting</option>
         </select>
       </div>
 
@@ -320,6 +326,21 @@
     let isMuted = false;
     let isVideoOn = false;
 
+    // Helper to read uploaded image file into usable Data URL
+    function getUploadedAvatarUrl(username) {
+      return new Promise((resolve) => {
+        const fileInput = document.getElementById('avatar-file');
+        if (fileInput && fileInput.files && fileInput.files[0]) {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = () => resolve(`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`);
+          reader.readAsDataURL(fileInput.files[0]);
+        } else {
+          resolve(`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`);
+        }
+      });
+    }
+
     // Listen for incoming calls
     peer.on('call', async (call) => {
       currentCall = call;
@@ -333,7 +354,6 @@
         document.getElementById('remote-avatar').style.opacity = "1";
       });
 
-      // Remove from room list once someone joins
       if (myRoomRef) {
         remove(myRoomRef);
       }
@@ -362,7 +382,6 @@
       keys.forEach(key => {
         const room = cachedRooms[key];
         
-        // Hide our own room from our public list
         if (room.peerId === myPeerId) return;
         if (filter !== 'ALL' && room.niche !== filter) return;
 
@@ -410,16 +429,15 @@
 
     async function hostCall() {
       const ytName = document.getElementById('username').value.trim() || 'Anonymous Creator';
-      const customAvatar = document.getElementById('avatar-url').value.trim();
       const discord = document.getElementById('discord-link').value.trim() || 'None';
       const niche = document.getElementById('host-niche').value;
       const game = document.getElementById('host-game').value.trim() || niche;
       const maxCap = document.getElementById('host-capacity').value;
-      const avatarSrc = customAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(ytName)}`;
+
+      const avatarSrc = await getUploadedAvatarUrl(ytName);
 
       await startMedia();
 
-      // Write room to global Firebase database
       myRoomRef = ref(db, 'active_rooms/' + myPeerId);
       set(myRoomRef, {
         peerId: myPeerId,
@@ -431,7 +449,6 @@
         maxCapacity: maxCap
       });
 
-      // Update Local UI
       document.getElementById('local-yt-name').innerText = ytName;
       document.getElementById('local-avatar').src = avatarSrc;
       document.getElementById('current-room-title').innerText = `Active Call: ${game} (${niche})`;
@@ -444,12 +461,10 @@
 
     async function joinRoom(room) {
       const ytName = document.getElementById('username').value.trim() || 'Anonymous Guest';
-      const customAvatar = document.getElementById('avatar-url').value.trim();
-      const avatarSrc = customAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(ytName)}`;
+      const avatarSrc = await getUploadedAvatarUrl(ytName);
 
       await startMedia();
 
-      // Setup stage for guest
       document.getElementById('local-yt-name').innerText = ytName;
       document.getElementById('local-avatar').src = avatarSrc;
       document.getElementById('remote-yt-name').innerText = room.hostName;
@@ -515,7 +530,6 @@
       document.getElementById('btn-video').innerText = isVideoOn ? 'Camera Off' : 'Camera On';
     }
 
-    // Automatically remove room from Firebase if user closes tab
     window.addEventListener('beforeunload', () => {
       if (myRoomRef) {
         remove(myRoomRef);
