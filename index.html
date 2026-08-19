@@ -269,7 +269,7 @@
 
     <!-- Center Column: Room Browser -->
     <div class="panel">
-      <!-- A-ADS SINGLE BANNER (2452702) -->
+      <!-- A-ADS SINGLE BANNER -->
       <div class="ad-container">
         <div id="frame" style="width: 728px; margin: auto; position: relative; z-index: 99998; height: auto;">
           <iframe data-aa='2452702' src='//ad.a-ads.com/2452702/?size=728x90' style='width:100%; height:90px; border:0px; padding:0; overflow:hidden; background-color: transparent;'></iframe>
@@ -299,8 +299,7 @@
       <p style="color: var(--subtext); font-size: 0.85rem; line-height: 1.5; margin-bottom: 15px;">
         Support GamerCollab by checking out our sponsors!
       </p>
-
-      <!-- A-ADS AD UNIT 2452705 -->
+      <!-- A-ADS AD UNIT -->
       <div id="frame" style="width: 100%; margin: auto; position: relative; z-index: 99998;">
         <iframe data-aa='2452705' src='//acceptable.a-ads.com/2452705/?size=adaptive' style='border:0px; padding:0; width:100%; min-height:250px; overflow:hidden; background-color: transparent;'></iframe>
       </div>
@@ -376,7 +375,7 @@
     <p>Bullying, harassment, or inappropriate content will result in an immediate ban. <strong>Users must be 13 years of age or older.</strong></p>
   </footer>
 
-  <!-- Firebase Realtime Database & PeerJS Engine -->
+  <!-- Firebase & PeerJS Engine -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
@@ -397,6 +396,7 @@
 
     let uploadedAvatarDataUrl = "";
     let userAge = 0; 
+    let isHostUser = false; // Tracks if you are the host or guest
 
     function readFileAsDataURL(file) {
       return new Promise((resolve) => {
@@ -407,7 +407,6 @@
       });
     }
 
-    // Modal Save Logic with Age Verification
     document.getElementById('btn-save-profile').addEventListener('click', async () => {
       const dobInput = document.getElementById('modal-dob').value;
       const name = document.getElementById('modal-display-name').value.trim();
@@ -475,18 +474,54 @@
     let isMuted = false;
     let isVideoOn = false;
 
-    window.openModal = function(id) {
-      document.getElementById(id).style.display = 'flex';
-    };
-
-    window.closeModal = function(id) {
-      document.getElementById(id).style.display = 'none';
-    };
+    window.openModal = function(id) { document.getElementById(id).style.display = 'flex'; };
+    window.closeModal = function(id) { document.getElementById(id).style.display = 'none'; };
 
     async function getUploadedAvatarUrl(username) {
       if (uploadedAvatarDataUrl) return uploadedAvatarDataUrl;
       return `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
     }
+
+    // --- CONNECTION TRACKING (NEW) ---
+    function handleConnectionLoss(call) {
+      const checkInterval = setInterval(() => {
+        if (currentCall !== call) {
+          clearInterval(checkInterval);
+          return;
+        }
+        if (call.peerConnection) {
+          const state = call.peerConnection.iceConnectionState;
+          if (state === 'disconnected' || state === 'closed' || state === 'failed') {
+            clearInterval(checkInterval);
+            if (currentCall === call) processDisconnect();
+          }
+        }
+      }, 1500);
+
+      call.on('close', () => {
+        if (currentCall === call) processDisconnect();
+      });
+    }
+
+    function processDisconnect() {
+      if (isHostUser) {
+        // If guest leaves, reset host UI back to "Waiting", but KEEP the room open!
+        document.getElementById('remote-video').srcObject = null;
+        document.getElementById('remote-yt-name').innerText = "Waiting for Partner...";
+        document.getElementById('remote-yt-name').style.color = "var(--subtext)";
+        document.getElementById('remote-avatar').src = "https://api.dicebear.com/7.x/bottts/svg?seed=Waiting";
+        document.getElementById('remote-avatar').style.opacity = "0.4";
+        if (currentCall) {
+          currentCall.close();
+          currentCall = null;
+        }
+      } else {
+        // If host leaves, force guest to leave the broken stage.
+        leaveRoom();
+        alert("The host has ended the call or disconnected.");
+      }
+    }
+    // ---------------------------------
 
     // HOST receives a call
     peer.on('call', async (call) => {
@@ -495,14 +530,19 @@
       await startMedia();
       call.answer(localStream);
 
+      // Extract Guest's name and avatar if they sent it
+      const guestName = call.metadata ? call.metadata.name : "Partner Connected!";
+      const guestAvatar = call.metadata ? call.metadata.avatar : "https://api.dicebear.com/7.x/bottts/svg?seed=Waiting";
+
       call.on('stream', remoteStream => {
         document.getElementById('remote-video').srcObject = remoteStream;
-        document.getElementById('remote-yt-name').innerText = "Partner Connected!";
+        document.getElementById('remote-yt-name').innerText = guestName;
         document.getElementById('remote-yt-name').style.color = "var(--green)";
+        document.getElementById('remote-avatar').src = guestAvatar;
         document.getElementById('remote-avatar').style.opacity = "1";
       });
 
-      // FIX: We no longer delete myRoomRef here, so the room stays visible!
+      handleConnectionLoss(call); // Track if guest drops
     });
 
     const lobbyRef = ref(db, 'active_rooms');
@@ -548,7 +588,6 @@
               <button class="btn-join" style="width:auto; padding:6px 15px;">Join Call</button>
             </div>
           </div>
-          
           <div class="room-details-box">
             ${room.bio ? `<p><strong>About Host:</strong> ${room.bio}</p>` : ''}
             ${room.discord && room.discord !== 'None' ? `<p><strong>Discord:</strong> <span class="discord-text">${room.discord}</span></p>` : ''}
@@ -580,21 +619,18 @@
 
     async function hostCall() {
       const ytName = document.getElementById('username').value.trim();
-      if (!ytName) {
-        openModal('user-setup-modal');
-        return;
-      }
+      if (!ytName) { openModal('user-setup-modal'); return; }
 
       const discord = document.getElementById('discord-link').value.trim() || 'None';
       const bio = document.getElementById('user-bio').value.trim() || 'Ready to game!';
       const niche = document.getElementById('host-niche').value;
       const game = document.getElementById('host-game').value.trim() || niche;
       const maxCap = document.getElementById('host-capacity').value;
-
       const avatarSrc = await getUploadedAvatarUrl(ytName);
 
       await startMedia();
       currentHostIp = userIp;
+      isHostUser = true; // Mark as Host
 
       myRoomRef = ref(db, 'active_rooms/' + myPeerId);
       set(myRoomRef, {
@@ -613,8 +649,6 @@
       document.getElementById('local-yt-name').innerText = ytName;
       document.getElementById('local-avatar').src = avatarSrc;
       document.getElementById('current-room-title').innerText = `Active Call: ${game} (${niche})`;
-      
-      // FIX: Show your own details in the stage header
       document.getElementById('room-discord-display').innerText = `Your Bio: ${bio} | Discord: ${discord}`;
       
       const stage = document.getElementById('call-stage');
@@ -624,13 +658,11 @@
 
     async function joinRoom(room) {
       const ytName = document.getElementById('username').value.trim();
-      if (!ytName) {
-        openModal('user-setup-modal');
-        return;
-      }
+      if (!ytName) { openModal('user-setup-modal'); return; }
 
       const avatarSrc = await getUploadedAvatarUrl(ytName);
       await startMedia();
+      isHostUser = false; // Mark as Guest
 
       document.getElementById('local-yt-name').innerText = ytName;
       document.getElementById('local-avatar').src = avatarSrc;
@@ -639,16 +671,18 @@
       document.getElementById('remote-avatar').src = room.hostAvatar;
       document.getElementById('remote-avatar').style.opacity = "1";
       document.getElementById('current-room-title').innerText = `Joined Call: ${room.game} (${room.niche})`;
-
-      // FIX: Push the host's details into the stage header when you join
       document.getElementById('room-discord-display').innerHTML = `<strong>Host Bio:</strong> ${room.bio} | <strong>Discord:</strong> ${room.discord}`;
 
-      currentCall = peer.call(room.peerId, localStream);
+      // Send our avatar & name over to the host so they can see who joined
+      currentCall = peer.call(room.peerId, localStream, {
+        metadata: { name: ytName, avatar: avatarSrc }
+      });
 
       if (currentCall) {
         currentCall.on('stream', remoteStream => {
           document.getElementById('remote-video').srcObject = remoteStream;
         });
+        handleConnectionLoss(currentCall); // Track if host drops
       }
 
       const stage = document.getElementById('call-stage');
@@ -671,7 +705,10 @@
     }
 
     function leaveRoom() {
-      if (currentCall) currentCall.close();
+      if (currentCall) {
+        currentCall.close();
+        currentCall = null;
+      }
       if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
         localStream = null;
@@ -683,14 +720,16 @@
       document.getElementById('remote-video').srcObject = null;
       document.getElementById('remote-yt-name').innerText = "Waiting for Partner...";
       document.getElementById('remote-yt-name').style.color = "var(--subtext)";
+      document.getElementById('remote-avatar').src = "https://api.dicebear.com/7.x/bottts/svg?seed=Waiting";
       document.getElementById('remote-avatar').style.opacity = "0.4";
       document.getElementById('room-discord-display').innerHTML = '';
 
-      // FIX: Only delete the room from the database if the *host* leaves
-      if (myRoomRef) {
+      // Only delete the room if the HOST clicks leave
+      if (isHostUser && myRoomRef) {
         remove(myRoomRef);
         myRoomRef = null;
       }
+      isHostUser = false; // Reset role state
     }
 
     function toggleAudio() {
@@ -731,7 +770,7 @@
     }
 
     window.addEventListener('beforeunload', () => {
-      if (myRoomRef) {
+      if (isHostUser && myRoomRef) {
         remove(myRoomRef);
       }
     });
