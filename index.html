@@ -199,17 +199,9 @@
       position: relative;
       box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
     }
-    .modal-content h2 {
-      color: var(--accent);
-      margin-top: 0;
-    }
-    .modal-content ul {
-      padding-left: 20px;
-      line-height: 1.6;
-    }
-    .modal-content li {
-      margin-bottom: 8px;
-    }
+    .modal-content h2 { color: var(--accent); margin-top: 0; }
+    .modal-content ul { padding-left: 20px; line-height: 1.6; }
+    .modal-content li { margin-bottom: 8px; }
     .modal-close {
       position: absolute;
       top: 15px;
@@ -310,7 +302,7 @@
         <p id="room-discord-display" style="margin:5px 0 0 0; font-size:0.85rem; color:var(--subtext);"></p>
       </div>
       <div style="display:flex; gap:10px;">
-        <button id="btn-report-call" class="btn-report" style="width:auto; padding:8px 15px; font-size:0.8rem;" onclick="alert('User reported. Moderation team notified.')">Report User</button>
+        <button id="btn-report-call" class="btn-report" style="width:auto; padding:8px 15px; font-size:0.8rem;" onclick="sendReport()">Report User</button>
         <button id="btn-leave-call" style="background:#ff4655; width:auto; padding:8px 20px;">Leave Call</button>
       </div>
     </div>
@@ -426,6 +418,28 @@
       }
     }
     checkIpBan();
+
+    // Report Logging Function
+    window.sendReport = async function() {
+      if (!userIp) {
+        alert("Could not verify IP for report.");
+        return;
+      }
+
+      const reportRef = ref(db, 'reports/' + Date.now());
+      
+      try {
+        await set(reportRef, {
+          reporterIp: userIp,
+          reportedRoomTitle: document.getElementById('current-room-title').innerText,
+          timestamp: new Date().toISOString()
+        });
+        alert("User reported successfully. The moderation team has been notified.");
+      } catch (err) {
+        console.error("Error submitting report:", err);
+        alert("Failed to submit report.");
+      }
+    };
 
     // Setup Unique Peer Connection
     const myPeerId = 'gcollab-' + Math.random().toString(36).substr(2, 9);
@@ -573,6 +587,7 @@
         peerId: myPeerId,
         hostName: ytName,
         hostAvatar: avatarSrc,
+        hostIp: userIp,
         discord: discord,
         niche: niche,
         game: game,
