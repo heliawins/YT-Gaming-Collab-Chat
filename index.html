@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GamerCollab 18+ | Find YouTube Collab Partners</title>
+  <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f111a;
+      --card: #1a1d2e;
+      --accent: #ff4655;
+      --text: #ffffff;
+      --subtext: #8b92b0;
+    }
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+    }
+    header {
+      background: var(--card);
+      padding: 15px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid var(--accent);
+    }
+    h1 { margin: 0; font-size: 1.5rem; color: var(--accent); }
+    .container {
+      max-width: 1100px;
+      margin: 20px auto;
+      padding: 0 20px;
+      display: grid;
+      grid-template-columns: 250px 1fr 250px;
+      gap: 20px;
+    }
+    .panel {
+      background: var(--card);
+      padding: 20px;
+      border-radius: 8px;
+    }
+    select, input, button {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 12px;
+      border-radius: 5px;
+      border: 1px solid #2e344e;
+      background: #0f111a;
+      color: var(--text);
+      box-sizing: border-box;
+    }
+    button {
+      background: var(--accent);
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+    }
+    button:hover { opacity: 0.9; }
+    .video-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    video {
+      width: 100%;
+      height: 200px;
+      background: black;
+      border-radius: 8px;
+      object-fit: cover;
+    }
+    /* Muted Crypto Banner Ad Container */
+    .ad-banner {
+      background: #151824;
+      border: 1px dashed #3a3f58;
+      border-radius: 6px;
+      padding: 10px;
+      text-align: center;
+      margin-bottom: 15px;
+      min-height: 100px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+    .ad-label {
+      font-size: 0.75rem;
+      color: var(--subtext);
+      margin-bottom: 5px;
+    }
+    /* 18+ Age Gate Overlay */
+    #age-modal {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.95);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    .modal-box {
+      background: var(--card);
+      padding: 30px;
+      border-radius: 10px;
+      text-align: center;
+      max-width: 400px;
+      border: 1px solid var(--accent);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 18+ Age Verification Modal -->
+  <div id="age-modal">
+    <div class="modal-box">
+      <h2>18+ Age Verification</h2>
+      <p>This YouTube gaming collaboration platform is strictly for creators aged 18 and older.</p>
+      <button onclick="confirmAge()">I am 18 or Older - Enter</button>
+      <button onclick="rejectAge()" style="background:#444; margin-top:5px;">Exit</button>
+    </div>
+  </div>
+
+  <header>
+    <h1>GamerCollab 18+</h1>
+    <span>YouTube Creator Matchmaking</span>
+  </header>
+
+  <div class="container">
+    
+    <!-- Left Column: Niche Filters & Controls -->
+    <div class="panel">
+      <h3>1. Select Niche</h3>
+      <select id="niche-select">
+        <option value="survival">Survival (Rust, DayZ, Ark)</option>
+        <option value="racing">Racing (Sims, Forza, Need for Speed)</option>
+        <option value="rpg">RPG / Fantasy (Elder Scrolls, Elden Ring)</option>
+        <option value="fps">FPS / Shooters (COD, Valorant)</option>
+        <option value="sandbox">Sandbox (Minecraft, Terraria)</option>
+      </select>
+
+      <h3>2. Your Details</h3>
+      <input type="text" id="yt-channel" placeholder="YouTube Channel Name">
+      <input type="text" id="my-peer-id" placeholder="Your ID (Auto-generating...)" readonly>
+
+      <h3>3. Call Collaborator</h3>
+      <input type="text" id="remote-peer-id" placeholder="Enter Partner ID to Call">
+      <button onclick="startCall()">Start Call</button>
+      <button onclick="endCall()" style="background:#555;">End Call</button>
+    </div>
+
+    <!-- Center Column: Video Stage -->
+    <div class="panel">
+      <!-- On-Screen Banner Ad Slot 1 -->
+      <div class="ad-banner">
+        <div class="ad-label">Sponsored Crypto Ad</div>
+        <!-- Paste your A-Ads or Cointraffic Iframe code here -->
+        <p style="color:var(--subtext); font-size:0.85rem;">[Crypto Banner Ad Placement Slot]</p>
+      </div>
+
+      <h3>Live Collaboration Room</h3>
+      <div class="video-grid">
+        <div>
+          <small>You (Local)</small>
+          <video id="local-video" autoplay muted></video>
+        </div>
+        <div>
+          <small>Partner (Remote)</small>
+          <video id="remote-video" autoplay></video>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Crypto Ads & Info -->
+    <div class="panel">
+      <h3>Sponsored</h3>
+      <!-- On-Screen Banner Ad Slot 2 -->
+      <div class="ad-banner" style="min-height: 250px;">
+        <div class="ad-label">Crypto Sidebar Ad</div>
+        <!-- Paste your 300x250 Crypto Banner Code here -->
+        <p style="color:var(--subtext); font-size:0.85rem;">[Vertical Banner Ad Placement Slot]</p>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    let localStream;
+    let peer;
+    let currentCall;
+
+    // 18+ Gate Handler
+    function confirmAge() {
+      document.getElementById('age-modal').style.display = 'none';
+      initWebRTC();
+    }
+    function rejectAge() {
+      alert("You must be 18+ to access this platform.");
+      window.location.href = "https://www.google.com";
+    }
+
+    // Initialize WebRTC and PeerJS
+    function initWebRTC() {
+      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+        .then(stream => {
+          localStream = stream;
+          document.getElementById('local-video').srcObject = stream;
+
+          // Connect to free public PeerJS server
+          peer = new Peer();
+
+          peer.on('open', id => {
+            document.getElementById('my-peer-id').value = id;
+          });
+
+          // Answer incoming calls automatically
+          peer.on('call', call => {
+            call.answer(localStream);
+            currentCall = call;
+            call.on('stream', remoteStream => {
+              document.getElementById('remote-video').srcObject = remoteStream;
+            });
+          });
+        })
+        .catch(err => {
+          console.error("Camera/Mic access denied:", err);
+          alert("Please enable Camera and Microphone permissions to use voice/video calls.");
+        });
+    }
+
+    // Call another peer by ID
+    function startCall() {
+      const remoteId = document.getElementById('remote-peer-id').value;
+      if (!remoteId) return alert("Please enter a Partner ID.");
+      
+      const call = peer.call(remoteId, localStream);
+      currentCall = call;
+      call.on('stream', remoteStream => {
+        document.getElementById('remote-video').srcObject = remoteStream;
+      });
+    }
+
+    function endCall() {
+      if (currentCall) currentCall.close();
+      document.getElementById('remote-video').srcObject = null;
+    }
+  </script>
+</body>
+</html>
