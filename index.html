@@ -230,7 +230,7 @@
       <h3>1. Your Profile</h3>
       <input type="text" id="username" placeholder="Display Name / YT Name">
       
-      <label style="font-size:0.8rem; color:var(--subtext);">Upload Profile Picture</label>
+      <label style="font-size:0.8rem; color:var(--subtext);">Upload Profile Picture (Optional)</label>
       <input type="file" id="avatar-file" accept="image/*">
 
       <input type="text" id="discord-link" placeholder="Discord Username or Link (Optional)">
@@ -340,8 +340,8 @@
       <label style="font-size:0.85rem; font-weight:bold;">Display Name (Gamer Tag, YT Name, Alias) <span style="color:var(--accent);">*</span></label>
       <input type="text" id="modal-display-name" placeholder="e.g. NinjaGamer123">
 
-      <label style="font-size:0.85rem; color:var(--subtext); margin-top:5px; display:block;">Profile Picture URL (Optional)</label>
-      <input type="url" id="modal-profile-pic" placeholder="https://example.com/pfp.jpg">
+      <label style="font-size:0.85rem; color:var(--subtext); margin-top:5px; display:block;">Upload Profile Picture (Optional)</label>
+      <input type="file" id="modal-avatar-file" accept="image/*">
 
       <label style="font-size:0.85rem; color:var(--subtext); margin-top:5px; display:block;">Discord Username or Server (Optional)</label>
       <input type="text" id="modal-discord-tag" placeholder="e.g. GamerTag#1234 or @gamertag">
@@ -413,12 +413,21 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // Profile Setup Modal Handling
-    let customPfpUrl = "";
+    let uploadedAvatarDataUrl = "";
 
-    document.getElementById('btn-save-profile').addEventListener('click', () => {
+    // Helper function to read file into Data URL
+    function readFileAsDataURL(file) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = () => resolve("");
+        reader.readAsDataURL(file);
+      });
+    }
+
+    // Profile Setup Modal Handling
+    document.getElementById('btn-save-profile').addEventListener('click', async () => {
       const name = document.getElementById('modal-display-name').value.trim();
-      const pfp = document.getElementById('modal-profile-pic').value.trim();
       const discord = document.getElementById('modal-discord-tag').value.trim();
       const errorMsg = document.getElementById('setup-error');
 
@@ -430,7 +439,12 @@
       errorMsg.style.display = 'none';
       document.getElementById('username').value = name;
       document.getElementById('discord-link').value = discord;
-      customPfpUrl = pfp;
+
+      // Check modal file input
+      const modalFileInput = document.getElementById('modal-avatar-file');
+      if (modalFileInput && modalFileInput.files && modalFileInput.files[0]) {
+        uploadedAvatarDataUrl = await readFileAsDataURL(modalFileInput.files[0]);
+      }
 
       closeModal('user-setup-modal');
     });
@@ -511,21 +525,19 @@
       }
     });
 
-    // Helper to read uploaded image file or URL into usable Data URL
-    function getUploadedAvatarUrl(username) {
-      return new Promise((resolve) => {
-        const fileInput = document.getElementById('avatar-file');
-        if (customPfpUrl) {
-          resolve(customPfpUrl);
-        } else if (fileInput && fileInput.files && fileInput.files[0]) {
-          const reader = new FileReader();
-          reader.onload = (e) => resolve(e.target.result);
-          reader.onerror = () => resolve(`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`);
-          reader.readAsDataURL(fileInput.files[0]);
-        } else {
-          resolve(`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`);
-        }
-      });
+    // Resolve Avatar URL (Uploaded file -> Fallback to generated avatar)
+    async function getUploadedAvatarUrl(username) {
+      if (uploadedAvatarDataUrl) {
+        return uploadedAvatarDataUrl;
+      }
+
+      const fileInput = document.getElementById('avatar-file');
+      if (fileInput && fileInput.files && fileInput.files[0]) {
+        uploadedAvatarDataUrl = await readFileAsDataURL(fileInput.files[0]);
+        return uploadedAvatarDataUrl;
+      }
+
+      return `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
     }
 
     // Listen for incoming calls
