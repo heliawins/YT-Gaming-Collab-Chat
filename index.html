@@ -6,9 +6,8 @@
   <title>GamerCollab 18+ | Live YouTube Creator Matchmaking</title>
   <!-- PeerJS for WebRTC Voice & Video -->
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-  <!-- Firebase Database (Free CDN) -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+  <!-- MQTT for Free Instant Room Signaling (Zero Setup) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mqtt/4.3.7/mqtt.min.js"></script>
   <style>
     :root {
       --bg: #0f111a;
@@ -18,9 +17,7 @@
       --text: #ffffff;
       --subtext: #8b92b0;
     }
-    html {
-      scroll-behavior: smooth;
-    }
+    html { scroll-behavior: smooth; }
     body {
       margin: 0;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -150,7 +147,6 @@
       max-width: 400px;
       border: 1px solid var(--accent);
     }
-    /* Bottom Full-Width Stage for Active Call */
     #call-stage {
       max-width: 1200px;
       margin: 30px auto 50px auto;
@@ -198,7 +194,7 @@
       </select>
 
       <label style="font-size:0.8rem; color:var(--subtext);">Specific Game Title</label>
-      <input type="text" id="host-game" placeholder="e.g. Rust, Forza Horizon 5">
+      <input type="text" id="host-game" placeholder="e.g. BeamNG.drive, Rust">
 
       <label style="font-size:0.8rem; color:var(--subtext);">Max Capacity (2 = You + 1 Guest)</label>
       <select id="host-capacity">
@@ -210,7 +206,7 @@
         <option value="100">100 Players (Mega Lobby)</option>
       </select>
 
-      <button onclick="createRoom()">Host Live Call</button>
+      <button onclick="createRoom()">Host Live Room</button>
     </div>
 
     <!-- Center Column: Search & Live Rooms Browser -->
@@ -234,7 +230,7 @@
       </div>
 
       <div id="room-list">
-        <p style="color:var(--subtext);">Loading available group calls...</p>
+        <p style="color:var(--subtext);">Connecting to live lobby network...</p>
       </div>
     </div>
 
@@ -273,36 +269,62 @@
   </div>
 
   <script>
-    // Firebase Setup (Free Public Realtime DB)
-    const firebaseConfig = {
-      databaseURL: "https://gamercollab-default-rtdb.firebaseio.com"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.database();
-
     let myPeer, myPeerId;
     let localStream;
     let activeRooms = {};
-    let currentRoomId = null;
+    let currentRoomData = null;
+    let heartbeatInterval = null;
     let isMuted = false;
     let isVideoOn = false;
+
+    // Connect to Free Public MQTT WebSockets Relay
+    const mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt');
+    const TOPIC = 'gamercollab/18plus/rooms/v1';
+
+    mqttClient.on('connect', () => {
+      mqttClient.subscribe(TOPIC);
+      renderRooms();
+    });
+
+    mqttClient.on('message', (topic, message) => {
+      try {
+        const payload = JSON.parse(message.toString());
+        if (payload.action === 'heartbeat') {
+          activeRooms[payload.room.id] = { ...payload.room, lastSeen: Date.now() };
+          renderRooms();
+        } else if (payload.action === 'remove') {
+          delete activeRooms[payload.roomId];
+          renderRooms();
+        }
+      } catch (e) { console.error(e); }
+    });
+
+    // Prune stale rooms every 3 seconds if host closes page
+    setInterval(() => {
+      const now = Date.now();
+      let changed = false;
+      for (let id in activeRooms) {
+        if (now - activeRooms[id].lastSeen > 6000) {
+          delete activeRooms[id];
+          changed = true;
+        }
+      }
+      if (changed) renderRooms();
+    }, 3000);
 
     function confirmAge() {
       document.getElementById('age-modal').style.display = 'none';
       initPeer();
-      listenForRooms();
     }
     function rejectAge() {
       alert("You must be 18+ to access this site.");
       window.location.href = "https://www.google.com";
     }
 
-    // Initialize PeerJS for Voice & Video
     function initPeer() {
       myPeer = new Peer();
       myPeer.on('open', id => { myPeerId = id; });
 
-      // Receive Incoming Calls
       myPeer.on('call', call => {
         call.answer(localStream);
         call.on('stream', userVideoStream => {
@@ -311,26 +333,23 @@
       });
     }
 
-    // Get Media Stream (Camera OFF by default per player preference)
     async function initMediaStream() {
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-        // Disable camera track by default so players can turn it on individually
         if (localStream.getVideoTracks().length > 0) {
-          localStream.getVideoTracks()[0].enabled = false;
+          localStream.getVideoTracks()[0].enabled = false; // Camera starts OFF by default
         }
         document.getElementById('local-video').srcObject = localStream;
       } catch (err) {
-        // Fallback to audio-only if no camera is plugged in
         try {
           localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         } catch (e) {
-          alert("Microphone permission required to join calls.");
+          alert("Microphone permission is required to join voice/video calls.");
         }
       }
     }
 
-    // Host a Call
+    // Host Room
     async function createRoom() {
       const username = document.getElementById('username').value || 'Anonymous Gamer';
       const discord = document.getElementById('discord-link').value || 'None';
@@ -340,11 +359,9 @@
 
       await initMediaStream();
 
-      const roomRef = db.ref('rooms').push();
-      currentRoomId = roomRef.key;
-
-      const roomData = {
-        id: currentRoomId,
+      const roomId = myPeerId || 'room_' + Math.random().toString(36).substr(2, 9);
+      currentRoomData = {
+        id: roomId,
         hostName: username,
         hostPeerId: myPeerId,
         discord: discord,
@@ -354,21 +371,22 @@
         currentUsers: 1
       };
 
-      await roomRef.set(roomData);
-      roomRef.onDisconnect().remove();
+      // Add to local state immediately
+      activeRooms[roomId] = { ...currentRoomData, lastSeen: Date.now() };
 
-      enterCallUI(roomData);
+      // Broadcast room heartbeat every 2 seconds
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
+      heartbeatInterval = setInterval(() => {
+        if (currentRoomData) {
+          mqttClient.publish(TOPIC, JSON.stringify({ action: 'heartbeat', room: currentRoomData }));
+        }
+      }, 2000);
+
+      enterCallUI(currentRoomData);
+      renderRooms();
     }
 
-    // Listen to Firebase for Live Rooms
-    function listenForRooms() {
-      db.ref('rooms').on('value', snapshot => {
-        activeRooms = snapshot.val() || {};
-        renderRooms();
-      });
-    }
-
-    // Render Active Rooms List
+    // Render Rooms
     function renderRooms() {
       const filter = document.getElementById('filter-niche').value;
       const container = document.getElementById('room-list');
@@ -384,7 +402,7 @@
         const room = activeRooms[key];
         if (filter !== 'ALL' && room.niche !== filter) return;
 
-        const isMyRoom = room.id === currentRoomId;
+        const isMyRoom = currentRoomData && room.id === currentRoomData.id;
         const isSoloWaiting = room.maxCapacity === 2 && room.currentUsers === 1;
 
         const card = document.createElement('div');
@@ -405,10 +423,9 @@
       });
     }
 
-    // Join Room
+    // Join Call
     async function joinRoom(roomId, hostPeerId) {
       await initMediaStream();
-      currentRoomId = roomId;
 
       const call = myPeer.call(hostPeerId, localStream);
       call.on('stream', userVideoStream => {
@@ -417,12 +434,12 @@
 
       const room = activeRooms[roomId];
       if (room) {
-        db.ref(`rooms/${roomId}/currentUsers`).transaction(count => (count || 1) + 1);
+        room.currentUsers += 1;
+        currentRoomData = room;
         enterCallUI(room);
       }
     }
 
-    // Add Remote Player Box to Grid
     function addRemotePlayer(peerId, stream) {
       if (document.getElementById(`player-${peerId}`)) return;
       const grid = document.getElementById('video-grid');
@@ -434,18 +451,15 @@
       box.querySelector('video').srcObject = stream;
     }
 
-    // Activate Call Window & Scroll Down Smoothly
     function enterCallUI(room) {
       const callStage = document.getElementById('call-stage');
       callStage.style.display = 'block';
       document.getElementById('current-room-title').innerText = `Active Call: ${room.game} (${room.niche})`;
       document.getElementById('room-discord-display').innerText = room.discord !== 'None' ? `Host Discord: ${room.discord}` : '';
       
-      // Auto-scroll to the bottom call section
       callStage.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    // Player-Optional Mic Toggle
     function toggleAudio() {
       if (!localStream) return;
       isMuted = !isMuted;
@@ -453,7 +467,6 @@
       document.getElementById('btn-audio').innerText = isMuted ? 'Unmute Mic' : 'Mute Mic';
     }
 
-    // Player-Optional Camera Toggle (Individual to each user)
     function toggleVideo() {
       if (!localStream || !localStream.getVideoTracks().length) {
         return alert("No camera detected on your device.");
@@ -463,15 +476,14 @@
       document.getElementById('btn-video').innerText = isVideoOn ? 'Camera Off' : 'Camera On';
     }
 
-    // Leave Call
     function leaveRoom() {
-      if (currentRoomId) {
-        db.ref(`rooms/${currentRoomId}`).remove();
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
+      if (currentRoomData) {
+        mqttClient.publish(TOPIC, JSON.stringify({ action: 'remove', roomId: currentRoomData.id }));
       }
       if (localStream) {
         localStream.getTracks().forEach(track => track.stop());
       }
-      document.getElementById('call-stage').style.display = 'none';
       location.reload();
     }
   </script>
