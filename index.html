@@ -696,14 +696,14 @@
       stage.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
+    // Requests microphone permission ONLY when joining/hosting a call
     async function startMedia() {
       if (localStream) return;
       try {
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-        localStream.getVideoTracks()[0].enabled = false;
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         document.getElementById('local-video').srcObject = localStream;
       } catch (e) {
-        alert("Camera/Microphone permission was denied.");
+        alert("Microphone permission was denied.");
       }
     }
 
@@ -713,9 +713,9 @@
         localStream.getTracks().forEach(track => track.stop());
         localStream = null;
       }
-      if (myRoomRef) {
-        remove(myRoomRef);
-      }
+
+      isVideoOn = false;
+      document.getElementById('btn-video').innerText = 'Camera On';
 
       currentHostIp = "Unknown";
       document.getElementById('call-stage').style.display = 'none';
@@ -733,11 +733,40 @@
       document.getElementById('btn-audio').innerText = isMuted ? 'Unmute Mic' : 'Mute Mic';
     }
 
-    function toggleVideo() {
-      if (!localStream || !localStream.getVideoTracks().length) return alert("No camera detected.");
-      isVideoOn = !isVideoOn;
-      localStream.getVideoTracks()[0].enabled = isVideoOn;
-      document.getElementById('btn-video').innerText = isVideoOn ? 'Camera Off' : 'Camera On';
+    // Requests camera permission ONLY when explicitly clicking "Camera On"
+    async function toggleVideo() {
+      if (!localStream) return;
+
+      let videoTrack = localStream.getVideoTracks()[0];
+
+      if (!videoTrack) {
+        try {
+          const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          videoTrack = videoStream.getVideoTracks()[0];
+          localStream.addTrack(videoTrack);
+
+          document.getElementById('local-video').srcObject = localStream;
+
+          if (currentCall && currentCall.peerConnection) {
+            const senders = currentCall.peerConnection.getSenders();
+            const videoSender = senders.find(s => s.track && s.track.kind === 'video');
+            if (videoSender) {
+              videoSender.replaceTrack(videoTrack);
+            } else {
+              currentCall.peerConnection.addTrack(videoTrack, localStream);
+            }
+          }
+
+          isVideoOn = true;
+          document.getElementById('btn-video').innerText = 'Camera Off';
+        } catch (e) {
+          alert("Camera permission was denied or camera is unavailable.");
+        }
+      } else {
+        isVideoOn = !isVideoOn;
+        videoTrack.enabled = isVideoOn;
+        document.getElementById('btn-video').innerText = isVideoOn ? 'Camera Off' : 'Camera On';
+      }
     }
 
     window.addEventListener('beforeunload', () => {
