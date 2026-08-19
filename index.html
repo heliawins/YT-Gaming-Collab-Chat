@@ -66,6 +66,7 @@
     }
     button:hover { opacity: 0.9; }
     .btn-secondary { background: #3a3f58; }
+    .btn-discord { background: #5865F2; }
     .btn-report { background: #ff9800; }
     .room-card {
       background: #151824;
@@ -77,10 +78,18 @@
       justify-content: space-between;
       align-items: center;
     }
-    .room-info h4 { margin: 0 0 5px 0; color: var(--green); }
+    .room-info h4 { margin: 0 0 5px 0; color: var(--accent); }
     .room-info p { margin: 0; font-size: 0.85rem; color: var(--subtext); }
     .badge {
       background: var(--green);
+      color: black;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 0.75rem;
+    }
+    .badge-own {
+      background: #38ef7d;
       color: black;
       padding: 2px 6px;
       border-radius: 4px;
@@ -157,13 +166,15 @@
       background: #0f111a;
       margin-top: auto;
     }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
 
   <header>
     <h1>GamerCollab</h1>
-    <span>Live Creator Matchmaking (13+)</span>
+    <span>Live YouTube & Twitch Creator Matchmaking (13+)</span>
   </header>
 
   <div class="container">
@@ -173,31 +184,53 @@
       <h3>1. Your Profile</h3>
       <input type="text" id="username" placeholder="YouTube or Twitch Name">
       <input type="text" id="avatar-url" placeholder="Profile Pic Image URL (Optional)">
+      <input type="text" id="discord-link" placeholder="Discord Username or Server Link">
 
-      <h3>2. Host a Call</h3>
+      <h3>2. Host a Call / Room</h3>
       <label style="font-size:0.8rem; color:var(--subtext);">Gaming Niche</label>
       <select id="host-niche">
-        <option value="Sandbox">Sandbox (Minecraft, Roblox)</option>
+        <option value="Sandbox">Sandbox (Minecraft, Terraria, Roblox)</option>
         <option value="Racing">Racing (Sims, Forza, NFS)</option>
         <option value="Survival">Survival (Rust, DayZ, Ark)</option>
-        <option value="RPG Fantasy">RPG / Fantasy</option>
-        <option value="FPS Shooters">FPS / Shooters (Fortnite, COD)</option>
+        <option value="RPG Fantasy">RPG / Fantasy (Elden Ring, Skyrim)</option>
+        <option value="FPS Shooters">FPS / Shooters (COD, Valorant, Fortnite)</option>
         <option value="Just Chatting">Just Chatting / Podcast</option>
       </select>
 
-      <label style="font-size:0.8rem; color:var(--subtext);">Specific Game / Topic Title</label>
-      <input type="text" id="host-game" placeholder="e.g. Unique Redstone Build Tutorial">
+      <label style="font-size:0.8rem; color:var(--subtext);">Specific Game Title</label>
+      <input type="text" id="host-game" placeholder="e.g. Minecraft, Roblox, Fortnite">
 
-      <button id="btn-host-call">Host Public Call</button>
+      <label style="font-size:0.8rem; color:var(--subtext);">Max Capacity (2 = You + 1 Guest)</label>
+      <select id="host-capacity">
+        <option value="2">2 Players (1-on-1 Duo)</option>
+        <option value="3">3 Players (Trio)</option>
+        <option value="4">4 Players (Squad)</option>
+        <option value="10">10 Players (Community Call)</option>
+      </select>
+
+      <button id="btn-host-call">Host Live Call</button>
     </div>
 
-    <!-- Center Column: Global Lobby -->
+    <!-- Center Column: Room Browser -->
     <div class="panel">
       <div class="ad-banner">
         <span style="font-size:0.75rem; color:var(--subtext);">Sponsored Gaming Ad</span>
+        <p style="color:var(--subtext); font-size:0.85rem;">[Insert Family-Safe Banner Code Here]</p>
       </div>
 
-      <h3>Live Public Groups</h3>
+      <h3>Browse Active Group Calls</h3>
+      <div style="display:flex; gap:10px; margin-bottom:15px;">
+        <select id="filter-niche">
+          <option value="ALL">All Gaming Niches</option>
+          <option value="Sandbox">Sandbox (Minecraft, Roblox)</option>
+          <option value="Racing">Racing</option>
+          <option value="Survival">Survival</option>
+          <option value="RPG Fantasy">RPG / Fantasy</option>
+          <option value="FPS Shooters">FPS / Shooters</option>
+          <option value="Just Chatting">Just Chatting</option>
+        </select>
+      </div>
+
       <div id="room-list">
         <p style="color:var(--subtext);">Connecting to live database...</p>
       </div>
@@ -208,16 +241,18 @@
       <h3>Sponsored</h3>
       <div class="ad-banner" style="min-height: 300px;">
         <span style="font-size:0.75rem; color:var(--subtext);">Partner Sidebar Ad</span>
+        <p style="color:var(--subtext); font-size:0.85rem;">[Insert Family-Safe Sidebar Code Here]</p>
       </div>
     </div>
 
   </div>
 
-  <!-- Bottom Stage: Live Call Stage -->
+  <!-- Bottom Stage: Live Voice/Video Call Window -->
   <div id="call-stage">
     <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #2e344e; padding-bottom:10px;">
       <div>
         <h3 id="current-room-title" style="margin:0; color:var(--accent);">Active Call Stage</h3>
+        <p id="room-discord-display" style="margin:5px 0 0 0; font-size:0.85rem; color:var(--subtext);"></p>
       </div>
       <div style="display:flex; gap:10px;">
         <button id="btn-report-call" class="btn-report" style="width:auto; padding:8px 15px; font-size:0.8rem;" onclick="alert('User reported. Moderation team notified.')">Report User</button>
@@ -226,10 +261,11 @@
     </div>
 
     <div class="video-grid" id="video-grid">
-      <!-- Player 1 Box (Local) -->
+      <!-- Player 1 Box (Host/Local) -->
       <div class="player-box">
         <img id="local-avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=Host" class="avatar-img" alt="Avatar">
         <div class="yt-name" id="local-yt-name">Your Channel Name</div>
+        <span class="badge-own">Host ( You )</span>
         <video id="local-video" autoplay muted></video>
         <div style="display:flex; gap:5px; margin-top:10px; width:100%;">
           <button id="btn-audio" class="btn-secondary" style="font-size:0.75rem;">Mute Mic</button>
@@ -237,25 +273,28 @@
         </div>
       </div>
 
-      <!-- Player 2 Box (Remote) -->
+      <!-- Player 2 Box (Partner Slot) -->
       <div class="player-box">
         <img id="remote-avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=Waiting" class="avatar-img" alt="Avatar" style="opacity:0.4;">
         <div class="yt-name" id="remote-yt-name" style="color:var(--subtext);">Waiting for Partner...</div>
+        <span class="badge" style="background:#3a3f58; color:white;">Guest Slot</span>
         <video id="remote-video" autoplay></video>
       </div>
     </div>
   </div>
 
   <footer>
-    <p>By using GamerCollab, you agree to keep the community safe, friendly, and toxic-free. <strong>Users must be 13+.</strong></p>
+    <p>By using GamerCollab, you agree to keep the community safe, friendly, and toxic-free.</p>
+    <p>Bullying, harassment, or inappropriate content will result in an immediate ban. <strong>Users must be 13 years of age or older.</strong></p>
+    <p><a href="#">Community Guidelines</a> | <a href="#">Privacy Policy</a></p>
   </footer>
 
-  <!-- Firebase & PeerJS Integration -->
+  <!-- Firebase Realtime Database & PeerJS Engine -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // YOUR EXACT FIREBASE CREDENTIALS
+    // Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyD50iZeqmamssUTcidN59GyIFs1c6hK7XI",
       authDomain: "yt-gaming-collab-chat-6502d.firebaseapp.com",
@@ -270,13 +309,14 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // Setup Unique Peer ID
+    // Setup Unique Peer Connection
     const myPeerId = 'gcollab-' + Math.random().toString(36).substr(2, 9);
     const peer = new Peer(myPeerId);
 
     let localStream = null;
     let currentCall = null;
     let myRoomRef = null;
+    let cachedRooms = {};
     let isMuted = false;
     let isVideoOn = false;
 
@@ -293,28 +333,40 @@
         document.getElementById('remote-avatar').style.opacity = "1";
       });
 
-      // Once someone connects, remove room from public list so others don't join
+      // Remove from room list once someone joins
       if (myRoomRef) {
         remove(myRoomRef);
       }
     });
 
-    // Listen for global public rooms in Realtime Database
+    // Sync active rooms from Firebase Database
     const lobbyRef = ref(db, 'active_rooms');
     onValue(lobbyRef, (snapshot) => {
-      const rooms = snapshot.val();
+      cachedRooms = snapshot.val() || {};
+      renderRooms();
+    });
+
+    // Render Room Cards & Handle Category Filter
+    function renderRooms() {
+      const filter = document.getElementById('filter-niche').value;
       const container = document.getElementById('room-list');
       container.innerHTML = '';
 
-      if (!rooms) {
+      const keys = Object.keys(cachedRooms);
+      if (keys.length === 0) {
         container.innerHTML = '<p style="color:var(--subtext);">No active group calls right now. Host one on the left!</p>';
         return;
       }
 
-      Object.keys(rooms).forEach(key => {
-        const room = rooms[key];
-        // Don't show our own room in our join browser
+      let matches = 0;
+      keys.forEach(key => {
+        const room = cachedRooms[key];
+        
+        // Hide our own room from our public list
         if (room.peerId === myPeerId) return;
+        if (filter !== 'ALL' && room.niche !== filter) return;
+
+        matches++;
 
         const card = document.createElement('div');
         card.className = 'room-card';
@@ -323,18 +375,34 @@
             <img src="${room.hostAvatar}" class="avatar-img" style="width:45px; height:45px; margin:0;">
             <div class="room-info">
               <h4>${room.game} <span class="badge">${room.niche}</span></h4>
-              <p><strong>Host:</strong> ${room.hostName}</p>
+              <p><strong>Host:</strong> ${room.hostName} | <strong>Max Cap:</strong> ${room.maxCapacity} Players</p>
             </div>
           </div>
-          <button style="width:auto; padding:6px 15px; background:var(--green); color:black;" class="btn-join" data-peer="${room.peerId}">Join Call</button>
+          <div style="text-align:right; display:flex; gap:5px; align-items:center;">
+            ${room.discord && room.discord !== 'None' ? `<button class="btn-discord btn-discord-link" style="width:auto; padding:5px 10px;">Discord</button>` : ''}
+            <button class="btn-join" style="width:auto; padding:6px 15px;">Join Call</button>
+          </div>
         `;
 
-        card.querySelector('.btn-join').addEventListener('click', () => joinRoom(room.peerId, room.hostName, room.hostAvatar));
+        if (room.discord && room.discord !== 'None') {
+          const discordBtn = card.querySelector('.btn-discord-link');
+          discordBtn.addEventListener('click', () => {
+            const url = room.discord.startsWith('http') ? room.discord : 'https://discord.com';
+            window.open(url, '_blank');
+          });
+        }
+
+        card.querySelector('.btn-join').addEventListener('click', () => joinRoom(room));
         container.appendChild(card);
       });
-    });
 
-    // Attach Buttons
+      if (matches === 0) {
+        container.innerHTML = `<p style="color:var(--subtext);">No active calls found for category "${filter}".</p>`;
+      }
+    }
+
+    // Attach Event Listeners
+    document.getElementById('filter-niche').addEventListener('change', renderRooms);
     document.getElementById('btn-host-call').addEventListener('click', hostCall);
     document.getElementById('btn-leave-call').addEventListener('click', leaveRoom);
     document.getElementById('btn-audio').addEventListener('click', toggleAudio);
@@ -343,38 +411,55 @@
     async function hostCall() {
       const ytName = document.getElementById('username').value.trim() || 'Anonymous Creator';
       const customAvatar = document.getElementById('avatar-url').value.trim();
+      const discord = document.getElementById('discord-link').value.trim() || 'None';
       const niche = document.getElementById('host-niche').value;
       const game = document.getElementById('host-game').value.trim() || niche;
+      const maxCap = document.getElementById('host-capacity').value;
       const avatarSrc = customAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(ytName)}`;
 
       await startMedia();
 
-      // Post room to global database
+      // Write room to global Firebase database
       myRoomRef = ref(db, 'active_rooms/' + myPeerId);
       set(myRoomRef, {
         peerId: myPeerId,
         hostName: ytName,
         hostAvatar: avatarSrc,
+        discord: discord,
         niche: niche,
-        game: game
+        game: game,
+        maxCapacity: maxCap
       });
 
-      showStage(ytName, avatarSrc, `Active Host Call: ${game}`);
+      // Update Local UI
+      document.getElementById('local-yt-name').innerText = ytName;
+      document.getElementById('local-avatar').src = avatarSrc;
+      document.getElementById('current-room-title').innerText = `Active Call: ${game} (${niche})`;
+      document.getElementById('room-discord-display').innerText = discord !== 'None' ? `Discord: ${discord}` : '';
+
+      const stage = document.getElementById('call-stage');
+      stage.style.display = 'block';
+      stage.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
-    async function joinRoom(targetPeerId, hostName, hostAvatar) {
+    async function joinRoom(room) {
       const ytName = document.getElementById('username').value.trim() || 'Anonymous Guest';
       const customAvatar = document.getElementById('avatar-url').value.trim();
       const avatarSrc = customAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(ytName)}`;
 
       await startMedia();
 
-      document.getElementById('remote-yt-name').innerText = hostName;
+      // Setup stage for guest
+      document.getElementById('local-yt-name').innerText = ytName;
+      document.getElementById('local-avatar').src = avatarSrc;
+      document.getElementById('remote-yt-name').innerText = room.hostName;
       document.getElementById('remote-yt-name').style.color = "var(--green)";
-      document.getElementById('remote-avatar').src = hostAvatar;
+      document.getElementById('remote-avatar').src = room.hostAvatar;
       document.getElementById('remote-avatar').style.opacity = "1";
+      document.getElementById('current-room-title').innerText = `Joined Call: ${room.game} (${room.niche})`;
+      document.getElementById('room-discord-display').innerText = room.discord !== 'None' ? `Discord: ${room.discord}` : '';
 
-      currentCall = peer.call(targetPeerId, localStream);
+      currentCall = peer.call(room.peerId, localStream);
 
       if (currentCall) {
         currentCall.on('stream', remoteStream => {
@@ -382,7 +467,9 @@
         });
       }
 
-      showStage(ytName, avatarSrc, `Connected to: ${hostName}`);
+      const stage = document.getElementById('call-stage');
+      stage.style.display = 'block';
+      stage.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     async function startMedia() {
@@ -392,18 +479,8 @@
         localStream.getVideoTracks()[0].enabled = false;
         document.getElementById('local-video').srcObject = localStream;
       } catch (e) {
-        alert("Camera/Microphone permission denied.");
+        alert("Camera/Microphone permission was denied.");
       }
-    }
-
-    function showStage(name, avatar, title) {
-      document.getElementById('local-yt-name').innerText = name;
-      document.getElementById('local-avatar').src = avatar;
-      document.getElementById('current-room-title').innerText = title;
-
-      const stage = document.getElementById('call-stage');
-      stage.style.display = 'block';
-      stage.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     function leaveRoom() {
@@ -438,7 +515,7 @@
       document.getElementById('btn-video').innerText = isVideoOn ? 'Camera Off' : 'Camera On';
     }
 
-    // Automatically remove room from database if user closes the browser tab
+    // Automatically remove room from Firebase if user closes tab
     window.addEventListener('beforeunload', () => {
       if (myRoomRef) {
         remove(myRoomRef);
