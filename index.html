@@ -181,7 +181,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.85);
       display: none;
       justify-content: center;
       align-items: center;
@@ -220,7 +220,7 @@
 
   <header>
     <h1>GamerCollab</h1>
-    <span>Live YouTube Creator Matchmaking (13+)</span>
+    <span>Live Creator Matchmaking (13+)</span>
   </header>
 
   <div class="container">
@@ -228,14 +228,15 @@
     <!-- Left Column: Profile & Host -->
     <div class="panel">
       <h3>1. Your Profile</h3>
-      <input type="text" id="username" placeholder="YouTube Channel Name">
+      <input type="text" id="username" placeholder="Display Name / YT Name">
       
       <label style="font-size:0.8rem; color:var(--subtext);">Upload Profile Picture</label>
       <input type="file" id="avatar-file" accept="image/*">
 
-      <input type="text" id="discord-link" placeholder="Discord Username or Server Link">
+      <input type="text" id="discord-link" placeholder="Discord Username or Link (Optional)">
+      <button class="btn-secondary" onclick="openModal('user-setup-modal')" style="font-size:0.8rem; margin-top:5px;">Edit Profile Setup</button>
 
-      <h3>2. Host a Call / Room</h3>
+      <h3 style="margin-top:20px;">2. Host a Call / Room</h3>
       <label style="font-size:0.8rem; color:var(--subtext);">Gaming Niche</label>
       <select id="host-niche">
         <option value="Sandbox">Sandbox (Minecraft, Terraria, Roblox)</option>
@@ -330,6 +331,27 @@
     </div>
   </div>
 
+  <!-- Mandatory Pre-Join Setup Modal Popup -->
+  <div id="user-setup-modal" class="modal-overlay" style="display: flex;">
+    <div class="modal-content" style="max-width: 420px;">
+      <h2>Set Up Your Profile</h2>
+      <p style="color:var(--subtext); font-size:0.85rem; margin-bottom:15px;">You must enter a display name before joining or hosting calls.</p>
+
+      <label style="font-size:0.85rem; font-weight:bold;">Display Name (Gamer Tag, YT Name, Alias) <span style="color:var(--accent);">*</span></label>
+      <input type="text" id="modal-display-name" placeholder="e.g. NinjaGamer123">
+
+      <label style="font-size:0.85rem; color:var(--subtext); margin-top:5px; display:block;">Profile Picture URL (Optional)</label>
+      <input type="url" id="modal-profile-pic" placeholder="https://example.com/pfp.jpg">
+
+      <label style="font-size:0.85rem; color:var(--subtext); margin-top:5px; display:block;">Discord Username or Server (Optional)</label>
+      <input type="text" id="modal-discord-tag" placeholder="e.g. GamerTag#1234 or @gamertag">
+
+      <p id="setup-error" style="color:var(--accent); font-size:0.8rem; display:none; margin: 5px 0 10px 0;">Display Name is required to continue!</p>
+
+      <button id="btn-save-profile" style="margin-top:10px;">Save Profile & Continue</button>
+    </div>
+  </div>
+
   <!-- Footer -->
   <footer>
     <p>By using GamerCollab, you agree to keep the community safe, friendly, and toxic-free.</p>
@@ -390,6 +412,28 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
+
+    // Profile Setup Modal Handling
+    let customPfpUrl = "";
+
+    document.getElementById('btn-save-profile').addEventListener('click', () => {
+      const name = document.getElementById('modal-display-name').value.trim();
+      const pfp = document.getElementById('modal-profile-pic').value.trim();
+      const discord = document.getElementById('modal-discord-tag').value.trim();
+      const errorMsg = document.getElementById('setup-error');
+
+      if (!name) {
+        errorMsg.style.display = 'block';
+        return;
+      }
+
+      errorMsg.style.display = 'none';
+      document.getElementById('username').value = name;
+      document.getElementById('discord-link').value = discord;
+      customPfpUrl = pfp;
+
+      closeModal('user-setup-modal');
+    });
 
     // IP & Tracking Initialization
     let userIp = null;
@@ -462,16 +506,18 @@
     };
 
     window.addEventListener('click', (event) => {
-      if (event.target.classList.contains('modal-overlay')) {
+      if (event.target.classList.contains('modal-overlay') && event.target.id !== 'user-setup-modal') {
         event.target.style.display = 'none';
       }
     });
 
-    // Helper to read uploaded image file into usable Data URL
+    // Helper to read uploaded image file or URL into usable Data URL
     function getUploadedAvatarUrl(username) {
       return new Promise((resolve) => {
         const fileInput = document.getElementById('avatar-file');
-        if (fileInput && fileInput.files && fileInput.files[0]) {
+        if (customPfpUrl) {
+          resolve(customPfpUrl);
+        } else if (fileInput && fileInput.files && fileInput.files[0]) {
           const reader = new FileReader();
           reader.onload = (e) => resolve(e.target.result);
           reader.onerror = () => resolve(`https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`);
@@ -572,7 +618,12 @@
     async function hostCall() {
       if (isBanned) return alert("You are banned from using this platform.");
 
-      const ytName = document.getElementById('username').value.trim() || 'Anonymous Creator';
+      const ytName = document.getElementById('username').value.trim();
+      if (!ytName) {
+        openModal('user-setup-modal');
+        return;
+      }
+
       const discord = document.getElementById('discord-link').value.trim() || 'None';
       const niche = document.getElementById('host-niche').value;
       const game = document.getElementById('host-game').value.trim() || niche;
@@ -582,7 +633,7 @@
 
       await startMedia();
 
-      currentHostIp = userIp; // Track host IP locally
+      currentHostIp = userIp;
 
       myRoomRef = ref(db, 'active_rooms/' + myPeerId);
       set(myRoomRef, {
@@ -609,12 +660,17 @@
     async function joinRoom(room) {
       if (isBanned) return alert("You are banned from using this platform.");
 
-      const ytName = document.getElementById('username').value.trim() || 'Anonymous Guest';
+      const ytName = document.getElementById('username').value.trim();
+      if (!ytName) {
+        openModal('user-setup-modal');
+        return;
+      }
+
       const avatarSrc = await getUploadedAvatarUrl(ytName);
 
       await startMedia();
 
-      currentHostIp = room.hostIp || "Unknown"; // Store target host IP for reporting
+      currentHostIp = room.hostIp || "Unknown";
 
       document.getElementById('local-yt-name').innerText = ytName;
       document.getElementById('local-avatar').src = avatarSrc;
