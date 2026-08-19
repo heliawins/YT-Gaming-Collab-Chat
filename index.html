@@ -173,6 +173,55 @@
     }
     footer a { color: var(--accent); text-decoration: none; }
     footer a:hover { text-decoration: underline; }
+
+    /* Modal Overlay & Popup Styles */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+    .modal-content {
+      background: var(--card);
+      border: 2px solid var(--accent);
+      border-radius: 8px;
+      padding: 25px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
+    }
+    .modal-content h2 {
+      color: var(--accent);
+      margin-top: 0;
+    }
+    .modal-content ul {
+      padding-left: 20px;
+      line-height: 1.6;
+    }
+    .modal-content li {
+      margin-bottom: 8px;
+    }
+    .modal-close {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 1.5rem;
+      cursor: pointer;
+      width: auto;
+      padding: 0;
+    }
   </style>
 </head>
 <body>
@@ -289,11 +338,46 @@
     </div>
   </div>
 
+  <!-- Footer -->
   <footer>
     <p>By using GamerCollab, you agree to keep the community safe, friendly, and toxic-free.</p>
     <p>Bullying, harassment, or inappropriate content will result in an immediate ban. <strong>Users must be 13 years of age or older.</strong></p>
-    <p><a href="#">Community Guidelines</a> | <a href="#">Privacy Policy</a></p>
+    <p>
+      <a href="#" onclick="openModal('guidelines-modal'); return false;">Community Guidelines</a> | 
+      <a href="#" onclick="openModal('privacy-modal'); return false;">Privacy Policy</a>
+    </p>
   </footer>
+
+  <!-- Community Guidelines Modal Popup -->
+  <div id="guidelines-modal" class="modal-overlay">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeModal('guidelines-modal')">&times;</button>
+      <h2>Community Guidelines</h2>
+      <p>Welcome to GamerCollab! To keep our community safe and enjoyable for all creators, you must follow these rules:</p>
+      <ul>
+        <li><strong>Age Requirement:</strong> You must be 13 years of age or older to use this service.</li>
+        <li><strong>Zero Tolerance for Abuse:</strong> Bullying, harassment, hate speech, threats, or discrimination of any kind will not be tolerated.</li>
+        <li><strong>Family-Safe Content:</strong> Explicit, violent, or NSFW profile pictures, names, or stream content are strictly prohibited.</li>
+        <li><strong>No Spam or Scams:</strong> Do not use Discord links or room titles to advertise scams, malware, or unauthorized promotions.</li>
+        <li><strong>Enforcement:</strong> Violating these rules will result in immediate room removal and a permanent ban from matchmaking.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Privacy Policy Modal Popup -->
+  <div id="privacy-modal" class="modal-overlay">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeModal('privacy-modal')">&times;</button>
+      <h2>Privacy Policy</h2>
+      <p>GamerCollab values your privacy. This policy explains how we handle your information:</p>
+      <ul>
+        <li><strong>Data We Handle:</strong> We temporarily process the username, profile picture, game preference, and Discord contact details you enter into the room creation form.</li>
+        <li><strong>How Data is Used:</strong> Your room details are temporarily stored in Firebase solely to display active calls in the live matchmaking lobby.</li>
+        <li><strong>Peer-to-Peer Connections:</strong> Video and audio calls are established using PeerJS. Your IP address may be processed temporarily by your browser to connect directly with other players.</li>
+        <li><strong>Data Storage & Deletion:</strong> Your room data automatically deletes from our database the moment you leave or close your browser tab. We do not store permanent user profiles or sell your data.</li>
+      </ul>
+    </div>
+  </div>
 
   <!-- Firebase Realtime Database & PeerJS Engine -->
   <script type="module">
@@ -325,6 +409,21 @@
     let cachedRooms = {};
     let isMuted = false;
     let isVideoOn = false;
+
+    // Functions to handle legal modals
+    window.openModal = function(id) {
+      document.getElementById(id).style.display = 'flex';
+    };
+
+    window.closeModal = function(id) {
+      document.getElementById(id).style.display = 'none';
+    };
+
+    window.addEventListener('click', (event) => {
+      if (event.target.classList.contains('modal-overlay')) {
+        event.target.style.display = 'none';
+      }
+    });
 
     // Helper to read uploaded image file into usable Data URL
     function getUploadedAvatarUrl(username) {
