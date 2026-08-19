@@ -3,13 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GamerCollab 18+ | Find YouTube Collab Partners</title>
+  <title>GamerCollab 18+ | Live Creator Matchmaking</title>
+  <!-- PeerJS for WebRTC Calling -->
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+  <!-- Firebase App & Database (Free CDN) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
   <style>
     :root {
       --bg: #0f111a;
       --card: #1a1d2e;
       --accent: #ff4655;
+      --green: #00e676;
       --text: #ffffff;
       --subtext: #8b92b0;
     }
@@ -29,11 +34,11 @@
     }
     h1 { margin: 0; font-size: 1.5rem; color: var(--accent); }
     .container {
-      max-width: 1100px;
+      max-width: 1200px;
       margin: 20px auto;
       padding: 0 20px;
       display: grid;
-      grid-template-columns: 250px 1fr 250px;
+      grid-template-columns: 300px 1fr 250px;
       gap: 20px;
     }
     .panel {
@@ -44,7 +49,7 @@
     select, input, button {
       width: 100%;
       padding: 10px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       border-radius: 5px;
       border: 1px solid #2e344e;
       background: #0f111a;
@@ -59,20 +64,41 @@
       border: none;
     }
     button:hover { opacity: 0.9; }
+    .btn-secondary { background: #3a3f58; }
+    .btn-discord { background: #5865F2; }
+    .room-card {
+      background: #151824;
+      border: 1px solid #2e344e;
+      border-radius: 6px;
+      padding: 15px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .room-info h4 { margin: 0 0 5px 0; color: var(--accent); }
+    .room-info p { margin: 0; font-size: 0.85rem; color: var(--subtext); }
+    .badge {
+      background: var(--green);
+      color: black;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 0.75rem;
+    }
     .video-grid {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 10px;
       margin-top: 15px;
     }
     video {
       width: 100%;
-      height: 200px;
+      height: 140px;
       background: black;
       border-radius: 8px;
       object-fit: cover;
     }
-    /* Muted Crypto Banner Ad Container */
     .ad-banner {
       background: #151824;
       border: 1px dashed #3a3f58;
@@ -86,12 +112,6 @@
       justify-content: center;
       align-items: center;
     }
-    .ad-label {
-      font-size: 0.75rem;
-      color: var(--subtext);
-      margin-bottom: 5px;
-    }
-    /* 18+ Age Gate Overlay */
     #age-modal {
       position: fixed;
       top: 0; left: 0; width: 100%; height: 100%;
@@ -113,11 +133,11 @@
 </head>
 <body>
 
-  <!-- 18+ Age Verification Modal -->
+  <!-- 18+ Verification Modal -->
   <div id="age-modal">
     <div class="modal-box">
       <h2>18+ Age Verification</h2>
-      <p>This YouTube gaming collaboration platform is strictly for creators aged 18 and older.</p>
+      <p>This YouTube gamer collaboration app is strictly for creators aged 18 and older.</p>
       <button onclick="confirmAge()">I am 18 or Older - Enter</button>
       <button onclick="rejectAge()" style="background:#444; margin-top:5px;">Exit</button>
     </div>
@@ -125,126 +145,286 @@
 
   <header>
     <h1>GamerCollab 18+</h1>
-    <span>YouTube Creator Matchmaking</span>
+    <span>Live YouTube Creator Matchmaking</span>
   </header>
 
   <div class="container">
     
-    <!-- Left Column: Niche Filters & Controls -->
+    <!-- Left Column: Creator Profile & Room Hosting -->
     <div class="panel">
-      <h3>1. Select Niche</h3>
-      <select id="niche-select">
-        <option value="survival">Survival (Rust, DayZ, Ark)</option>
-        <option value="racing">Racing (Sims, Forza, Need for Speed)</option>
-        <option value="rpg">RPG / Fantasy (Elder Scrolls, Elden Ring)</option>
-        <option value="fps">FPS / Shooters (COD, Valorant)</option>
-        <option value="sandbox">Sandbox (Minecraft, Terraria)</option>
+      <h3>1. Your Profile</h3>
+      <input type="text" id="username" placeholder="YouTube / Creator Name">
+      <input type="text" id="discord-link" placeholder="Discord Username or Server Link">
+
+      <h3>2. Host a Call / Room</h3>
+      <label style="font-size:0.8rem; color:var(--subtext);">Gaming Niche</label>
+      <select id="host-niche">
+        <option value="Survival">Survival (Rust, DayZ, Ark)</option>
+        <option value="Racing">Racing (Sims, Forza, NFS)</option>
+        <option value="RPG Fantasy">RPG / Fantasy (Elden Ring, Skyrim)</option>
+        <option value="FPS Shooters">FPS / Shooters (COD, Valorant)</option>
+        <option value="Sandbox">Sandbox (Minecraft, Terraria)</option>
       </select>
 
-      <h3>2. Your Details</h3>
-      <input type="text" id="yt-channel" placeholder="YouTube Channel Name">
-      <input type="text" id="my-peer-id" placeholder="Your ID (Auto-generating...)" readonly>
+      <label style="font-size:0.8rem; color:var(--subtext);">Specific Game Title</label>
+      <input type="text" id="host-game" placeholder="e.g. Rust, Forza Horizon 5">
 
-      <h3>3. Call Collaborator</h3>
-      <input type="text" id="remote-peer-id" placeholder="Enter Partner ID to Call">
-      <button onclick="startCall()">Start Call</button>
-      <button onclick="endCall()" style="background:#555;">End Call</button>
+      <label style="font-size:0.8rem; color:var(--subtext);">Max Capacity (2 = You + 1 Guest)</label>
+      <select id="host-capacity">
+        <option value="2">2 Players (1-on-1 Duo)</option>
+        <option value="3">3 Players (Trio)</option>
+        <option value="4">4 Players (Squad)</option>
+        <option value="10">10 Players (Community Call)</option>
+        <option value="50">50 Players (Large Event)</option>
+        <option value="100">100 Players (Mega Lobby)</option>
+      </select>
+
+      <label style="font-size:0.85rem; display:block; margin-bottom:10px;">
+        <input type="checkbox" id="enable-video" style="width:auto;"> Enable Camera (Video Call)
+      </label>
+
+      <button onclick="createRoom()">Host Live Room</button>
     </div>
 
-    <!-- Center Column: Video Stage -->
+    <!-- Center Column: Room Search & Active Call Stage -->
     <div class="panel">
-      <!-- On-Screen Banner Ad Slot 1 -->
+      <!-- Crypto Banner Ad Placement Slot 1 -->
       <div class="ad-banner">
-        <div class="ad-label">Sponsored Crypto Ad</div>
-        <!-- Paste your A-Ads or Cointraffic Iframe code here -->
-        <p style="color:var(--subtext); font-size:0.85rem;">[Crypto Banner Ad Placement Slot]</p>
+        <span style="font-size:0.75rem; color:var(--subtext);">Sponsored Crypto Ad</span>
+        <p style="color:var(--subtext); font-size:0.85rem;">[Insert A-Ads / Cointraffic 728x90 Banner Code]</p>
       </div>
 
-      <h3>Live Collaboration Room</h3>
-      <div class="video-grid">
-        <div>
-          <small>You (Local)</small>
-          <video id="local-video" autoplay muted></video>
+      <!-- Active Call Stage -->
+      <div id="call-stage" style="display:none; margin-bottom: 20px; background:#151824; padding:15px; border-radius:8px;">
+        <h3 id="current-room-title" style="margin-top:0;">In Call: Solo / Group</h3>
+        <p id="room-discord-display" style="font-size:0.85rem; color:var(--subtext);"></p>
+        
+        <div class="video-grid" id="video-grid">
+          <div>
+            <small>You</small>
+            <video id="local-video" autoplay muted></video>
+          </div>
         </div>
-        <div>
-          <small>Partner (Remote)</small>
-          <video id="remote-video" autoplay></video>
+
+        <div style="display:flex; gap:10px; margin-top:15px;">
+          <button onclick="toggleAudio()" id="btn-audio" class="btn-secondary">Mute Mic</button>
+          <button onclick="toggleVideo()" id="btn-video" class="btn-secondary">Toggle Video</button>
+          <button onclick="leaveRoom()" style="background:#ff4655;">Leave Call</button>
         </div>
+      </div>
+
+      <!-- Search & Live Room Browser -->
+      <h3>Find Creators & Open Calls</h3>
+      <div style="display:flex; gap:10px; margin-bottom:15px;">
+        <select id="filter-niche" onchange="renderRooms()">
+          <option value="ALL">All Gaming Niches</option>
+          <option value="Survival">Survival</option>
+          <option value="Racing">Racing</option>
+          <option value="RPG Fantasy">RPG / Fantasy</option>
+          <option value="FPS Shooters">FPS / Shooters</option>
+          <option value="Sandbox">Sandbox</option>
+        </select>
+      </div>
+
+      <div id="room-list">
+        <p style="color:var(--subtext);">Loading available rooms...</p>
       </div>
     </div>
 
-    <!-- Right Column: Crypto Ads & Info -->
+    <!-- Right Column: Crypto Ads -->
     <div class="panel">
       <h3>Sponsored</h3>
-      <!-- On-Screen Banner Ad Slot 2 -->
-      <div class="ad-banner" style="min-height: 250px;">
-        <div class="ad-label">Crypto Sidebar Ad</div>
-        <!-- Paste your 300x250 Crypto Banner Code here -->
-        <p style="color:var(--subtext); font-size:0.85rem;">[Vertical Banner Ad Placement Slot]</p>
+      <div class="ad-banner" style="min-height: 300px;">
+        <span style="font-size:0.75rem; color:var(--subtext);">Crypto Sidebar Ad</span>
+        <p style="color:var(--subtext); font-size:0.85rem;">[Insert 300x250 Crypto Banner Code]</p>
       </div>
     </div>
 
   </div>
 
   <script>
-    let localStream;
-    let peer;
-    let currentCall;
+    // Firebase Config - Free Realtime DB Setup
+    const firebaseConfig = {
+      databaseURL: "https://gamercollab-default-rtdb.firebaseio.com" // Free Public RTDB Endpoint
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
 
-    // 18+ Gate Handler
+    let myPeer, myPeerId;
+    let localStream;
+    let activeRooms = {};
+    let currentRoomId = null;
+    let isMuted = false;
+    let isVideoOn = false;
+
     function confirmAge() {
       document.getElementById('age-modal').style.display = 'none';
-      initWebRTC();
+      initPeer();
+      listenForRooms();
     }
     function rejectAge() {
-      alert("You must be 18+ to access this platform.");
+      alert("You must be 18+ to access this site.");
       window.location.href = "https://www.google.com";
     }
 
-    // Initialize WebRTC and PeerJS
-    function initWebRTC() {
-      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-        .then(stream => {
-          localStream = stream;
-          document.getElementById('local-video').srcObject = stream;
+    // Initialize PeerJS
+    function initPeer() {
+      myPeer = new Peer();
+      myPeer.on('open', id => { myPeerId = id; });
 
-          // Connect to free public PeerJS server
-          peer = new Peer();
-
-          peer.on('open', id => {
-            document.getElementById('my-peer-id').value = id;
-          });
-
-          // Answer incoming calls automatically
-          peer.on('call', call => {
-            call.answer(localStream);
-            currentCall = call;
-            call.on('stream', remoteStream => {
-              document.getElementById('remote-video').srcObject = remoteStream;
-            });
-          });
-        })
-        .catch(err => {
-          console.error("Camera/Mic access denied:", err);
-          alert("Please enable Camera and Microphone permissions to use voice/video calls.");
+      myPeer.on('call', call => {
+        call.answer(localStream);
+        call.on('stream', userVideoStream => {
+          addRemoteVideo(call.peer, userVideoStream);
         });
-    }
-
-    // Call another peer by ID
-    function startCall() {
-      const remoteId = document.getElementById('remote-peer-id').value;
-      if (!remoteId) return alert("Please enter a Partner ID.");
-      
-      const call = peer.call(remoteId, localStream);
-      currentCall = call;
-      call.on('stream', remoteStream => {
-        document.getElementById('remote-video').srcObject = remoteStream;
       });
     }
 
-    function endCall() {
-      if (currentCall) currentCall.close();
-      document.getElementById('remote-video').srcObject = null;
+    // Initialize Camera / Microphone
+    async function getMediaStream(enableVideo) {
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: enableVideo
+        });
+        document.getElementById('local-video').srcObject = localStream;
+      } catch (err) {
+        alert("Camera/Microphone access required for calls.");
+      }
+    }
+
+    // Create a Room in Firebase
+    async function createRoom() {
+      const username = document.getElementById('username').value || 'Anonymous Gamer';
+      const discord = document.getElementById('discord-link').value || 'None';
+      const niche = document.getElementById('host-niche').value;
+      const game = document.getElementById('host-game').value || niche;
+      const maxCap = parseInt(document.getElementById('host-capacity').value);
+      const allowVideo = document.getElementById('enable-video').checked;
+
+      await getMediaStream(allowVideo);
+
+      const roomRef = db.ref('rooms').push();
+      currentRoomId = roomRef.key;
+
+      const roomData = {
+        id: currentRoomId,
+        hostName: username,
+        hostPeerId: myPeerId,
+        discord: discord,
+        niche: niche,
+        game: game,
+        maxCapacity: maxCap,
+        currentUsers: 1,
+        videoEnabled: allowVideo
+      };
+
+      await roomRef.set(roomData);
+      roomRef.onDisconnect().remove();
+
+      enterCallUI(roomData);
+    }
+
+    // Listen for Live Rooms
+    function listenForRooms() {
+      db.ref('rooms').on('value', snapshot => {
+        activeRooms = snapshot.val() || {};
+        renderRooms();
+      });
+    }
+
+    // Render Room Cards in UI
+    function renderRooms() {
+      const filter = document.getElementById('filter-niche').value;
+      const container = document.getElementById('room-list');
+      container.innerHTML = '';
+
+      const roomKeys = Object.keys(activeRooms);
+      if (roomKeys.length === 0) {
+        container.innerHTML = '<p style="color:var(--subtext);">No active calls right now. Host one on the left!</p>';
+        return;
+      }
+
+      roomKeys.forEach(key => {
+        const room = activeRooms[key];
+        if (filter !== 'ALL' && room.niche !== filter) return;
+
+        const isSolo = room.maxCapacity === 2 && room.currentUsers === 1;
+        const card = document.createElement('div');
+        card.className = 'room-card';
+        card.innerHTML = `
+          <div class="room-info">
+            <h4>${room.game} <span class="badge">${room.niche}</span></h4>
+            <p><strong>Host:</strong> ${room.hostName} | <strong>Capacity:</strong> ${room.currentUsers}/${room.maxCapacity} Creators</p>
+            ${isSolo ? '<p style="color:var(--green); font-size:0.8rem;">⚡ Solo Caller - Waiting for 1 Partner</p>' : ''}
+            ${room.discord !== 'None' ? `<p style="font-size:0.8rem; color:#5865F2;">Discord: ${room.discord}</p>` : ''}
+          </div>
+          <div>
+            ${room.discord !== 'None' ? `<button class="btn-discord" onclick="window.open('${room.discord.startsWith('http') ? room.discord : 'https://discord.com'}', '_blank')" style="margin-bottom:5px;">Discord</button>` : ''}
+            <button onclick="joinRoom('${room.id}', '${room.hostPeerId}', ${room.videoEnabled})">Join Call</button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // Join Room and Call Host
+    async function joinRoom(roomId, hostPeerId, allowVideo) {
+      await getMediaStream(allowVideo);
+      currentRoomId = roomId;
+
+      const call = myPeer.call(hostPeerId, localStream);
+      call.on('stream', userVideoStream => {
+        addRemoteVideo(hostPeerId, userVideoStream);
+      });
+
+      const room = activeRooms[roomId];
+      if (room) {
+        db.ref(`rooms/${roomId}/currentUsers`).transaction(count => (count || 1) + 1);
+        enterCallUI(room);
+      }
+    }
+
+    function addRemoteVideo(peerId, stream) {
+      if (document.getElementById(`video-${peerId}`)) return;
+      const grid = document.getElementById('video-grid');
+      const wrapper = document.createElement('div');
+      wrapper.id = `video-${peerId}`;
+      wrapper.innerHTML = `<small>Partner</small><video autoplay></video>`;
+      grid.appendChild(wrapper);
+      wrapper.querySelector('video').srcObject = stream;
+    }
+
+    function enterCallUI(room) {
+      document.getElementById('call-stage').style.display = 'block';
+      document.getElementById('current-room-title').innerText = `Live Room: ${room.game} (${room.niche})`;
+      document.getElementById('room-discord-display').innerText = room.discord !== 'None' ? `Discord: ${room.discord}` : '';
+    }
+
+    function toggleAudio() {
+      if (!localStream) return;
+      isMuted = !isMuted;
+      localStream.getAudioTracks()[0].enabled = !isMuted;
+      document.getElementById('btn-audio').innerText = isMuted ? 'Unmute Mic' : 'Mute Mic';
+    }
+
+    function toggleVideo() {
+      if (!localStream || !localStream.getVideoTracks().length) return;
+      isVideoOn = !isVideoOn;
+      localStream.getVideoTracks()[0].enabled = isVideoOn;
+      document.getElementById('btn-video').innerText = isVideoOn ? 'Camera On' : 'Camera Off';
+    }
+
+    function leaveRoom() {
+      if (currentRoomId) {
+        db.ref(`rooms/${currentRoomId}`).remove();
+      }
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+      }
+      document.getElementById('call-stage').style.display = 'none';
+      document.getElementById('video-grid').innerHTML = '<div><small>You</small><video id="local-video" autoplay muted></video></div>';
+      location.reload();
     }
   </script>
 </body>
