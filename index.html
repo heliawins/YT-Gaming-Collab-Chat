@@ -391,8 +391,9 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
-    // IP Ban System Initialization
+    // IP & Tracking Initialization
     let userIp = null;
+    let currentHostIp = "Unknown";
     let isBanned = false;
 
     async function checkIpBan() {
@@ -419,22 +420,21 @@
     }
     checkIpBan();
 
-    // Report Logging Function
-    window.sendReport = async function() {
-      if (!userIp) {
-        alert("Could not verify IP for report.");
-        return;
-      }
+    // Upgraded Report Function
+    window.sendReport = async function(reportedHostIp) {
+      if (!userIp) return alert("Could not verify IP.");
 
+      const targetIp = reportedHostIp || currentHostIp || "Unknown";
       const reportRef = ref(db, 'reports/' + Date.now());
       
       try {
         await set(reportRef, {
           reporterIp: userIp,
-          reportedRoomTitle: document.getElementById('current-room-title').innerText,
+          accusedHostIp: targetIp,
+          roomTitle: document.getElementById('current-room-title').innerText,
           timestamp: new Date().toISOString()
         });
-        alert("User reported successfully. The moderation team has been notified.");
+        alert("User reported. Our team will review the log.");
       } catch (err) {
         console.error("Error submitting report:", err);
         alert("Failed to submit report.");
@@ -582,6 +582,8 @@
 
       await startMedia();
 
+      currentHostIp = userIp; // Track host IP locally
+
       myRoomRef = ref(db, 'active_rooms/' + myPeerId);
       set(myRoomRef, {
         peerId: myPeerId,
@@ -611,6 +613,8 @@
       const avatarSrc = await getUploadedAvatarUrl(ytName);
 
       await startMedia();
+
+      currentHostIp = room.hostIp || "Unknown"; // Store target host IP for reporting
 
       document.getElementById('local-yt-name').innerText = ytName;
       document.getElementById('local-avatar').src = avatarSrc;
@@ -655,6 +659,7 @@
         remove(myRoomRef);
       }
 
+      currentHostIp = "Unknown";
       document.getElementById('call-stage').style.display = 'none';
       document.getElementById('local-video').srcObject = null;
       document.getElementById('remote-video').srcObject = null;
