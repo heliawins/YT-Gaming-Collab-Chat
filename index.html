@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>GamerCollab 18+ | Live YouTube Creator Matchmaking</title>
+  <title>GamerCollab | Live Creator Matchmaking (13+)</title>
   <style>
     :root {
       --bg: #0f111a;
@@ -19,6 +19,9 @@
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background-color: var(--bg);
       color: var(--text);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
     }
     header {
       background: var(--card);
@@ -36,6 +39,7 @@
       display: grid;
       grid-template-columns: 300px 1fr 250px;
       gap: 20px;
+      flex: 1;
     }
     .panel {
       background: var(--card);
@@ -62,6 +66,7 @@
     button:hover { opacity: 0.9; }
     .btn-secondary { background: #3a3f58; }
     .btn-discord { background: #5865F2; }
+    .btn-report { background: #ff9800; }
     .room-card {
       background: #151824;
       border: 1px solid #2e344e;
@@ -154,13 +159,24 @@
       border-radius: 10px;
       display: none;
     }
+    footer {
+      text-align: center;
+      padding: 20px;
+      color: var(--subtext);
+      font-size: 0.85rem;
+      border-top: 1px solid #2e344e;
+      background: #0f111a;
+      margin-top: auto;
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
 
   <header>
-    <h1>GamerCollab 18+</h1>
-    <span>Live YouTube Creator Matchmaking</span>
+    <h1>GamerCollab</h1>
+    <span>Live YouTube & Twitch Creator Matchmaking (13+)</span>
   </header>
 
   <div class="container">
@@ -168,22 +184,23 @@
     <!-- Left Column: Profile & Host -->
     <div class="panel">
       <h3>1. Your Profile</h3>
-      <input type="text" id="username" placeholder="YouTube Channel Name">
+      <input type="text" id="username" placeholder="YouTube or Twitch Name">
       <input type="text" id="avatar-url" placeholder="Profile Pic Image URL (Optional)">
       <input type="text" id="discord-link" placeholder="Discord Username or Server Link">
 
       <h3>2. Host a Call / Room</h3>
       <label style="font-size:0.8rem; color:var(--subtext);">Gaming Niche</label>
       <select id="host-niche">
+        <option value="Sandbox">Sandbox (Minecraft, Terraria, Roblox)</option>
         <option value="Racing">Racing (Sims, Forza, NFS)</option>
         <option value="Survival">Survival (Rust, DayZ, Ark)</option>
         <option value="RPG Fantasy">RPG / Fantasy (Elden Ring, Skyrim)</option>
-        <option value="FPS Shooters">FPS / Shooters (COD, Valorant)</option>
-        <option value="Sandbox">Sandbox (Minecraft, Terraria)</option>
+        <option value="FPS Shooters">FPS / Shooters (COD, Valorant, Fortnite)</option>
+        <option value="Just Chatting">Just Chatting / Podcast</option>
       </select>
 
       <label style="font-size:0.8rem; color:var(--subtext);">Specific Game Title</label>
-      <input type="text" id="host-game" placeholder="e.g. BeamNG.drive, Rust">
+      <input type="text" id="host-game" placeholder="e.g. Minecraft, Roblox, Fortnite">
 
       <label style="font-size:0.8rem; color:var(--subtext);">Max Capacity (2 = You + 1 Guest)</label>
       <select id="host-capacity">
@@ -199,19 +216,20 @@
     <!-- Center Column: Room Browser -->
     <div class="panel">
       <div class="ad-banner">
-        <span style="font-size:0.75rem; color:var(--subtext);">Sponsored Crypto Ad</span>
-        <p style="color:var(--subtext); font-size:0.85rem;">[Insert A-Ads Banner Code Here]</p>
+        <span style="font-size:0.75rem; color:var(--subtext);">Sponsored Gaming Ad</span>
+        <p style="color:var(--subtext); font-size:0.85rem;">[Insert Family-Safe Banner Code Here]</p>
       </div>
 
       <h3>Browse Active Group Calls</h3>
       <div style="display:flex; gap:10px; margin-bottom:15px;">
         <select id="filter-niche">
           <option value="ALL">All Gaming Niches</option>
+          <option value="Sandbox">Sandbox (Minecraft, Roblox)</option>
           <option value="Racing">Racing</option>
           <option value="Survival">Survival</option>
           <option value="RPG Fantasy">RPG / Fantasy</option>
           <option value="FPS Shooters">FPS / Shooters</option>
-          <option value="Sandbox">Sandbox</option>
+          <option value="Just Chatting">Just Chatting</option>
         </select>
       </div>
 
@@ -224,8 +242,8 @@
     <div class="panel">
       <h3>Sponsored</h3>
       <div class="ad-banner" style="min-height: 300px;">
-        <span style="font-size:0.75rem; color:var(--subtext);">Crypto Sidebar Ad</span>
-        <p style="color:var(--subtext); font-size:0.85rem;">[Insert Sidebar Banner Code Here]</p>
+        <span style="font-size:0.75rem; color:var(--subtext);">Partner Sidebar Ad</span>
+        <p style="color:var(--subtext); font-size:0.85rem;">[Insert Family-Safe Sidebar Code Here]</p>
       </div>
     </div>
 
@@ -238,7 +256,10 @@
         <h3 id="current-room-title" style="margin:0; color:var(--accent);">Active Call Stage</h3>
         <p id="room-discord-display" style="margin:5px 0 0 0; font-size:0.85rem; color:var(--subtext);"></p>
       </div>
-      <button id="btn-leave-call" style="background:#ff4655; width:auto; padding:8px 20px;">Leave Call</button>
+      <div style="display:flex; gap:10px;">
+        <button id="btn-report-call" class="btn-report" style="width:auto; padding:8px 15px; font-size:0.8rem;" onclick="alert('User reported. Moderation team notified.')">Report User</button>
+        <button id="btn-leave-call" style="background:#ff4655; width:auto; padding:8px 20px;">Leave Call</button>
+      </div>
     </div>
 
     <div class="video-grid" id="video-grid">
@@ -263,6 +284,12 @@
       </div>
     </div>
   </div>
+
+  <footer>
+    <p>By using GamerCollab, you agree to keep the community safe, friendly, and toxic-free.</p>
+    <p>Bullying, harassment, or inappropriate content will result in an immediate ban. <strong>Users must be 13 years of age or older.</strong></p>
+    <p><a href="#">Community Guidelines</a> | <a href="#">Privacy Policy</a></p>
+  </footer>
 
   <script>
     // Global State
