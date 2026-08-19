@@ -78,15 +78,17 @@
     .btn-secondary { background: #3a3f58; }
     .btn-discord { background: #5865F2; }
     .btn-report { background: #ff9800; }
+    
+    /* Room Card Styling */
     .room-card {
       background: #151824;
       border: 1px solid #2e344e;
       border-radius: 6px;
       padding: 15px;
-      margin-bottom: 10px;
+      margin-bottom: 15px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px;
     }
     .room-header {
       display: flex;
@@ -95,15 +97,21 @@
     }
     .room-info h4 { margin: 0 0 5px 0; color: var(--accent); }
     .room-info p { margin: 0; font-size: 0.85rem; color: var(--subtext); }
-    .room-bio {
+    
+    .room-details-box {
       background: #0f111a;
-      padding: 10px;
+      padding: 12px;
       border-radius: 4px;
       font-size: 0.85rem;
       color: #c0c5dced;
-      margin: 0;
       border-left: 3px solid var(--accent);
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
     }
+    .room-details-box p { margin: 0; }
+    .discord-text { color: #5865F2; font-weight: bold; }
+    
     .badge {
       background: var(--green);
       color: black;
@@ -213,20 +221,6 @@
       box-shadow: 0 0 20px rgba(0, 0, 0, 0.7);
     }
     .modal-content h2 { color: var(--accent); margin-top: 0; }
-    .modal-content ul { padding-left: 20px; line-height: 1.6; }
-    .modal-content li { margin-bottom: 8px; }
-    .modal-close {
-      position: absolute;
-      top: 15px;
-      right: 15px;
-      background: transparent;
-      border: none;
-      color: var(--text);
-      font-size: 1.5rem;
-      cursor: pointer;
-      width: auto;
-      padding: 0;
-    }
   </style>
 </head>
 <body>
@@ -402,6 +396,7 @@
     const db = getDatabase(app);
 
     let uploadedAvatarDataUrl = "";
+    let userAge = 0; // Global variable to store verified age
 
     function readFileAsDataURL(file) {
       return new Promise((resolve) => {
@@ -443,6 +438,7 @@
       }
 
       errorMsg.style.display = 'none';
+      userAge = age; // Store age so others can see it later
       
       // Populate sidebar profile
       document.getElementById('username').value = name;
@@ -541,13 +537,15 @@
 
         const card = document.createElement('div');
         card.className = 'room-card';
+        
+        // Add Age and Max Cap to the top section, and Discord & Bio below
         card.innerHTML = `
           <div class="room-header">
             <div style="display:flex; align-items:center; gap:12px;">
               <img src="${room.hostAvatar}" class="avatar-img" style="width:45px; height:45px; margin:0;">
               <div class="room-info">
                 <h4>${room.game} <span class="badge">${room.niche}</span></h4>
-                <p><strong>Host:</strong> ${room.hostName} | <strong>Max Cap:</strong> ${room.maxCapacity} Players</p>
+                <p><strong>Host:</strong> ${room.hostName} | <strong>Age:</strong> ${room.age || 'Unknown'} | <strong>Max Cap:</strong> ${room.maxCapacity}</p>
               </div>
             </div>
             <div style="text-align:right; display:flex; gap:5px; align-items:center;">
@@ -555,7 +553,11 @@
               <button class="btn-join" style="width:auto; padding:6px 15px;">Join Call</button>
             </div>
           </div>
-          ${room.bio ? `<p class="room-bio"><strong>About Host:</strong> ${room.bio}</p>` : ''}
+          
+          <div class="room-details-box">
+            ${room.bio ? `<p><strong>About Host:</strong> ${room.bio}</p>` : ''}
+            ${room.discord && room.discord !== 'None' ? `<p><strong>Discord:</strong> <span class="discord-text">${room.discord}</span></p>` : ''}
+          </div>
         `;
 
         if (room.discord && room.discord !== 'None') {
@@ -599,6 +601,7 @@
       await startMedia();
       currentHostIp = userIp;
 
+      // Send the User Age to Firebase so others can see it
       myRoomRef = ref(db, 'active_rooms/' + myPeerId);
       set(myRoomRef, {
         peerId: myPeerId,
@@ -607,6 +610,7 @@
         hostIp: userIp,
         discord: discord,
         bio: bio,
+        age: userAge, // Pushing age here
         niche: niche,
         game: game,
         maxCapacity: maxCap
