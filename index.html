@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GamerCollab 18+ | Live YouTube Creator Matchmaking</title>
-  <!-- PeerJS for Direct Voice & Video Calls -->
+  <!-- PeerJS for WebRTC Audio/Video Calls -->
   <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
   <style>
     :root {
@@ -95,22 +95,41 @@
       font-weight: bold;
       font-size: 0.75rem;
     }
+    /* Bottom Stage User Card Styles */
     .video-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 12px;
-      margin-top: 15px;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 15px;
+      margin-top: 20px;
     }
     .player-box {
       background: #0f111a;
       border: 1px solid #2e344e;
       border-radius: 8px;
-      padding: 8px;
+      padding: 12px;
       text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .avatar-img {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: 2px solid var(--accent);
+      margin-bottom: 8px;
+      object-fit: cover;
+      background: #1a1d2e;
+    }
+    .yt-name {
+      font-weight: bold;
+      font-size: 1rem;
+      color: var(--text);
+      margin-bottom: 8px;
     }
     video {
       width: 100%;
-      height: 150px;
+      height: 160px;
       background: #000;
       border-radius: 6px;
       object-fit: cover;
@@ -148,10 +167,11 @@
 
   <div class="container">
     
-    <!-- Left Column: Profile & Hosting -->
+    <!-- Left Panel: Setup Profile & Host -->
     <div class="panel">
       <h3>1. Your Profile</h3>
-      <input type="text" id="username" placeholder="YouTube / Creator Name">
+      <input type="text" id="username" placeholder="YouTube Channel Name">
+      <input type="text" id="avatar-url" placeholder="Profile Pic Image URL (Optional)">
       <input type="text" id="discord-link" placeholder="Discord Username or Server Link">
 
       <h3>2. Host a Call / Room</h3>
@@ -180,7 +200,7 @@
       <button onclick="createRoom()">Host Live Call</button>
     </div>
 
-    <!-- Center Column: Search & Live Rooms Browser -->
+    <!-- Center Panel: Call Browser -->
     <div class="panel">
       <div class="ad-banner">
         <span style="font-size:0.75rem; color:var(--subtext);">Sponsored Crypto Ad</span>
@@ -204,7 +224,7 @@
       </div>
     </div>
 
-    <!-- Right Column: Crypto Ads -->
+    <!-- Right Panel: Ads -->
     <div class="panel">
       <h3>Sponsored</h3>
       <div class="ad-banner" style="min-height: 300px;">
@@ -215,24 +235,33 @@
 
   </div>
 
-  <!-- Bottom Active Call Stage -->
+  <!-- Bottom Stage: Live Voice/Video Call Window -->
   <div id="call-stage">
-    <div style="display:flex; justify-content:space-between; align-items:center;">
+    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #2e344e; padding-bottom:10px;">
       <div>
-        <h3 id="current-room-title" style="margin:0; color:var(--accent);">In Call</h3>
+        <h3 id="current-room-title" style="margin:0; color:var(--accent);">Active Call</h3>
         <p id="room-discord-display" style="margin:5px 0 0 0; font-size:0.85rem; color:var(--subtext);"></p>
       </div>
       <button onclick="leaveRoom()" style="background:#ff4655; width:auto; padding:8px 20px;">Leave Call</button>
     </div>
 
     <div class="video-grid" id="video-grid">
-      <div class="player-box">
-        <small style="color:var(--accent); font-weight:bold;">You (Local)</small>
+      <!-- Player 1 Box (Local Host) -->
+      <div class="player-box" id="local-player-box">
+        <img id="local-avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=Host" class="avatar-img" alt="Avatar">
+        <div class="yt-name" id="local-yt-name">Your Channel Name</div>
         <video id="local-video" autoplay muted></video>
-        <div style="display:flex; gap:5px; margin-top:8px;">
+        <div style="display:flex; gap:5px; margin-top:8px; width:100%;">
           <button onclick="toggleAudio()" id="btn-audio" class="btn-secondary" style="font-size:0.75rem;">Mute Mic</button>
           <button onclick="toggleVideo()" id="btn-video" class="btn-secondary" style="font-size:0.75rem;">Camera On</button>
         </div>
+      </div>
+
+      <!-- Player 2 Box (Waiting Slot / Partner) -->
+      <div class="player-box" id="remote-player-box">
+        <img id="remote-avatar" src="https://api.dicebear.com/7.x/bottts/svg?seed=Waiting" class="avatar-img" alt="Avatar" style="opacity:0.5;">
+        <div class="yt-name" id="remote-yt-name" style="color:var(--subtext);">Waiting for Partner...</div>
+        <video id="remote-video" autoplay></video>
       </div>
     </div>
   </div>
@@ -245,8 +274,8 @@
     let isMuted = false;
     let isVideoOn = false;
 
-    // Cross-tab broadcast channel for local instant testing
-    const channel = new BroadcastChannel('gamer_collab_rooms');
+    // Local Storage & Cross-Tab Sync
+    const channel = new BroadcastChannel('gamer_collab_rooms_v2');
     channel.onmessage = (e) => {
       if (e.data.type === 'SYNC') {
         activeRooms = e.data.rooms;
@@ -254,48 +283,35 @@
       }
     };
 
-    // Initialize PeerJS
+    // PeerJS Init
     try {
       myPeer = new Peer();
       myPeer.on('open', id => { myPeerId = id; });
       myPeer.on('call', call => {
         call.answer(localStream);
-        call.on('stream', remoteStream => addRemotePlayer(call.peer, remoteStream));
+        call.on('stream', remoteStream => {
+          document.getElementById('remote-video').srcObject = remoteStream;
+        });
       });
-    } catch(e) { console.warn("PeerJS loading fallback activated"); }
+    } catch(e) { console.warn("PeerJS running in fallback mode."); }
 
-    // Start Audio/Video Stream
-    async function startMedia() {
-      if (localStream) return;
-      try {
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-        if (localStream.getVideoTracks().length > 0) {
-          localStream.getVideoTracks()[0].enabled = false; // Video starts OFF
-        }
-        document.getElementById('local-video').srcObject = localStream;
-      } catch (err) {
-        try {
-          localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-        } catch (e) {
-          console.warn("Microphone access not granted.");
-        }
-      }
-    }
-
-    // Host Room (Executes Immediately)
-    async function createRoom() {
-      const username = document.getElementById('username').value || 'Anonymous Gamer';
-      const discord = document.getElementById('discord-link').value || 'None';
+    // Instant Host Action
+    function createRoom() {
+      const ytName = document.getElementById('username').value.trim() || 'Anonymous Creator';
+      const customAvatar = document.getElementById('avatar-url').value.trim();
+      const discord = document.getElementById('discord-link').value.trim() || 'None';
       const niche = document.getElementById('host-niche').value;
-      const game = document.getElementById('host-game').value || niche;
+      const game = document.getElementById('host-game').value.trim() || niche;
       const maxCap = parseInt(document.getElementById('host-capacity').value);
 
       const roomId = myPeerId || 'room_' + Math.random().toString(36).substr(2, 9);
-      
+      const avatarSrc = customAvatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(ytName)}`;
+
       currentRoom = {
         id: roomId,
-        hostName: username,
-        hostPeerId: myPeerId || roomId,
+        hostName: ytName,
+        hostPeerId: roomId,
+        hostAvatar: avatarSrc,
         discord: discord,
         niche: niche,
         game: game,
@@ -303,21 +319,29 @@
         currentUsers: 1
       };
 
-      // 1. Add to active rooms
+      // 1. Instantly register in list
       activeRooms[roomId] = currentRoom;
-
-      // 2. Broadcast to other tabs/visitors
       channel.postMessage({ type: 'SYNC', rooms: activeRooms });
 
-      // 3. Update UI instantly
-      renderRooms();
-      enterCallUI(currentRoom);
+      // 2. Render call stage at bottom with Profile Pic & Name
+      document.getElementById('local-yt-name').innerText = ytName + " (You)";
+      document.getElementById('local-avatar').src = avatarSrc;
+      document.getElementById('current-room-title').innerText = `Active Call: ${game} (${niche})`;
+      document.getElementById('room-discord-display').innerText = discord !== 'None' ? `Discord: ${discord}` : '';
 
-      // 4. Request camera/mic in background
-      await startMedia();
+      // 3. Show Call Stage & Scroll Down
+      const stage = document.getElementById('call-stage');
+      stage.style.display = 'block';
+      stage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+      // 4. Update the Active Rooms Browser List
+      renderRooms();
+
+      // 5. Connect Microphone / Camera in Background
+      startMedia();
     }
 
-    // Render Room Cards
+    // Render Rooms in Active Calls List
     function renderRooms() {
       const filter = document.getElementById('filter-niche').value;
       const container = document.getElementById('room-list');
@@ -341,11 +365,13 @@
         const card = document.createElement('div');
         card.className = `room-card ${isMyRoom ? 'my-own-room' : ''}`;
         card.innerHTML = `
-          <div class="room-info">
-            <h4>${room.game} <span class="badge">${room.niche}</span> ${isMyRoom ? '<span class="badge-own">(Your Room)</span>' : ''}</h4>
-            <p><strong>Host:</strong> ${room.hostName} | <strong>Players:</strong> ${room.currentUsers}/${room.maxCapacity}</p>
-            ${isSoloWaiting ? '<p style="color:var(--green); font-size:0.8rem;">⚡ Solo Caller - Waiting for 1 Partner</p>' : ''}
-            ${room.discord !== 'None' ? `<p style="font-size:0.8rem; color:#5865F2;">Discord: ${room.discord}</p>` : ''}
+          <div style="display:flex; align-items:center; gap:12px;">
+            <img src="${room.hostAvatar}" class="avatar-img" style="width:45px; height:45px; margin:0;">
+            <div class="room-info">
+              <h4>${room.game} <span class="badge">${room.niche}</span> ${isMyRoom ? '<span class="badge-own">(Your Room)</span>' : ''}</h4>
+              <p><strong>Host:</strong> ${room.hostName} | <strong>Players:</strong> ${room.currentUsers}/${room.maxCapacity}</p>
+              ${isSoloWaiting ? '<p style="color:var(--green); font-size:0.8rem;">⚡ Solo Caller - Waiting for 1 Partner</p>' : ''}
+            </div>
           </div>
           <div style="text-align:right;">
             ${room.discord !== 'None' ? `<button class="btn-discord" onclick="window.open('${room.discord.startsWith('http') ? room.discord : 'https://discord.com'}', '_blank')" style="margin-bottom:5px; width:auto; padding:5px 10px;">Discord</button>` : ''}
@@ -360,41 +386,51 @@
       }
     }
 
-    // Join Call
+    // Background Stream Loader
+    async function startMedia() {
+      if (localStream) return;
+      try {
+        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        if (localStream.getVideoTracks().length > 0) {
+          localStream.getVideoTracks()[0].enabled = false; // Video starts OFF
+        }
+        document.getElementById('local-video').srcObject = localStream;
+      } catch (err) {
+        try {
+          localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+        } catch (e) {
+          console.warn("Media access declined or restricted.");
+        }
+      }
+    }
+
+    // Join Room
     async function joinRoom(roomId, hostPeerId) {
       await startMedia();
       const room = activeRooms[roomId];
       if (room) {
         room.currentUsers += 1;
         currentRoom = room;
+
+        document.getElementById('remote-yt-name').innerText = room.hostName;
+        document.getElementById('remote-yt-name').style.color = "var(--text)";
+        document.getElementById('remote-avatar').src = room.hostAvatar;
+        document.getElementById('remote-avatar').style.opacity = "1";
+
         if (myPeer) {
           const call = myPeer.call(hostPeerId, localStream);
-          if (call) call.on('stream', remoteStream => addRemotePlayer(hostPeerId, remoteStream));
+          if (call) {
+            call.on('stream', remoteStream => {
+              document.getElementById('remote-video').srcObject = remoteStream;
+            });
+          }
         }
-        enterCallUI(room);
+
+        const stage = document.getElementById('call-stage');
+        stage.style.display = 'block';
+        stage.scrollIntoView({ behavior: 'smooth', block: 'start' });
         renderRooms();
       }
-    }
-
-    function addRemotePlayer(peerId, stream) {
-      if (document.getElementById(`player-${peerId}`)) return;
-      const grid = document.getElementById('video-grid');
-      const box = document.createElement('div');
-      box.className = 'player-box';
-      box.id = `player-${peerId}`;
-      box.innerHTML = `<small>Partner Player</small><video autoplay></video>`;
-      grid.appendChild(box);
-      box.querySelector('video').srcObject = stream;
-    }
-
-    // Open Call Stage & Scroll Down
-    function enterCallUI(room) {
-      const callStage = document.getElementById('call-stage');
-      callStage.style.display = 'block';
-      document.getElementById('current-room-title').innerText = `Active Call: ${room.game} (${room.niche})`;
-      document.getElementById('room-discord-display').innerText = room.discord !== 'None' ? `Host Discord: ${room.discord}` : '';
-      
-      callStage.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     function toggleAudio() {
