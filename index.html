@@ -399,6 +399,34 @@
     const app = initializeApp(firebaseConfig);
     const db = getDatabase(app);
 
+    // IP Ban System Initialization
+    let userIp = null;
+    let isBanned = false;
+
+    async function checkIpBan() {
+      try {
+        const response = await fetch('https://api.ipify.org?format=json');
+        const data = await response.json();
+        userIp = data.ip.replace(/\./g, '_');
+
+        const banRef = ref(db, 'banned_ips/' + userIp);
+        onValue(banRef, (snapshot) => {
+          if (snapshot.exists() && snapshot.val() === true) {
+            isBanned = true;
+            document.body.innerHTML = `
+              <div style="text-align:center; padding:100px 20px; color:#ff4655; font-family:sans-serif;">
+                <h1>Access Denied</h1>
+                <p style="color:#ffffff;">Your IP address has been banned for violating community guidelines.</p>
+              </div>
+            `;
+          }
+        });
+      } catch (err) {
+        console.error("IP verification error:", err);
+      }
+    }
+    checkIpBan();
+
     // Setup Unique Peer Connection
     const myPeerId = 'gcollab-' + Math.random().toString(36).substr(2, 9);
     const peer = new Peer(myPeerId);
@@ -442,6 +470,7 @@
 
     // Listen for incoming calls
     peer.on('call', async (call) => {
+      if (isBanned) return;
       currentCall = call;
       await startMedia();
       call.answer(localStream);
@@ -527,6 +556,8 @@
     document.getElementById('btn-video').addEventListener('click', toggleVideo);
 
     async function hostCall() {
+      if (isBanned) return alert("You are banned from using this platform.");
+
       const ytName = document.getElementById('username').value.trim() || 'Anonymous Creator';
       const discord = document.getElementById('discord-link').value.trim() || 'None';
       const niche = document.getElementById('host-niche').value;
@@ -559,6 +590,8 @@
     }
 
     async function joinRoom(room) {
+      if (isBanned) return alert("You are banned from using this platform.");
+
       const ytName = document.getElementById('username').value.trim() || 'Anonymous Guest';
       const avatarSrc = await getUploadedAvatarUrl(ytName);
 
