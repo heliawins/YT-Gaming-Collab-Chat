@@ -140,18 +140,12 @@
       object-fit: cover;
       margin-top: 10px;
     }
-    .ad-banner {
-      background: #151824;
-      border: 1px dashed #3a3f58;
-      border-radius: 6px;
-      padding: 10px;
-      text-align: center;
-      margin-bottom: 15px;
-      min-height: 100px;
+    .ad-container {
       display: flex;
-      flex-direction: column;
       justify-content: center;
       align-items: center;
+      margin-bottom: 15px;
+      overflow: hidden;
     }
     #call-stage {
       max-width: 1200px;
@@ -262,9 +256,10 @@
 
     <!-- Center Column: Room Browser -->
     <div class="panel">
-      <div class="ad-banner">
-        <span style="font-size:0.75rem; color:var(--subtext);">Sponsored Gaming Ad</span>
-        <p style="color:var(--subtext); font-size:0.85rem;">[Insert Family-Safe Banner Code Here]</p>
+      
+      <!-- A-ADS CENTER BANNER (728x90) -->
+      <div class="ad-container">
+        <iframe src="https://ad.a-ads.com/YOUR_AADS_UNIT_ID_1?size=728x90" style="width:728px; height:90px; border:0px; padding:0; overflow:hidden; background-color:transparent;" loading="lazy"></iframe>
       </div>
 
       <h3>Browse Active Group Calls</h3>
@@ -287,9 +282,10 @@
     <!-- Right Column: Ads -->
     <div class="panel">
       <h3>Sponsored</h3>
-      <div class="ad-banner" style="min-height: 300px;">
-        <span style="font-size:0.75rem; color:var(--subtext);">Partner Sidebar Ad</span>
-        <p style="color:var(--subtext); font-size:0.85rem;">[Insert Family-Safe Sidebar Code Here]</p>
+      
+      <!-- A-ADS SIDEBAR BANNER (300x250 or 200x200) -->
+      <div class="ad-container">
+        <iframe src="https://ad.a-ads.com/YOUR_AADS_UNIT_ID_2?size=300x250" style="width:100%; height:250px; border:0px; padding:0; overflow:hidden; background-color:transparent;" loading="lazy"></iframe>
       </div>
     </div>
 
@@ -398,7 +394,6 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
     import { getDatabase, ref, set, onValue, remove } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-    // Firebase Config
     const firebaseConfig = {
       apiKey: "AIzaSyD50iZeqmamssUTcidN59GyIFs1c6hK7XI",
       authDomain: "yt-gaming-collab-chat-6502d.firebaseapp.com",
@@ -415,7 +410,6 @@
 
     let uploadedAvatarDataUrl = "";
 
-    // Helper function to read file into Data URL
     function readFileAsDataURL(file) {
       return new Promise((resolve) => {
         const reader = new FileReader();
@@ -425,7 +419,6 @@
       });
     }
 
-    // Profile Setup Modal Handling
     document.getElementById('btn-save-profile').addEventListener('click', async () => {
       const name = document.getElementById('modal-display-name').value.trim();
       const discord = document.getElementById('modal-discord-tag').value.trim();
@@ -440,7 +433,6 @@
       document.getElementById('username').value = name;
       document.getElementById('discord-link').value = discord;
 
-      // Check modal file input
       const modalFileInput = document.getElementById('modal-avatar-file');
       if (modalFileInput && modalFileInput.files && modalFileInput.files[0]) {
         uploadedAvatarDataUrl = await readFileAsDataURL(modalFileInput.files[0]);
@@ -449,7 +441,6 @@
       closeModal('user-setup-modal');
     });
 
-    // IP & Tracking Initialization
     let userIp = null;
     let currentHostIp = "Unknown";
     let isBanned = false;
@@ -478,7 +469,6 @@
     }
     checkIpBan();
 
-    // Upgraded Report Function
     window.sendReport = async function(reportedHostIp) {
       if (!userIp) return alert("Could not verify IP.");
 
@@ -499,7 +489,6 @@
       }
     };
 
-    // Setup Unique Peer Connection
     const myPeerId = 'gcollab-' + Math.random().toString(36).substr(2, 9);
     const peer = new Peer(myPeerId);
 
@@ -510,7 +499,6 @@
     let isMuted = false;
     let isVideoOn = false;
 
-    // Functions to handle legal modals
     window.openModal = function(id) {
       document.getElementById(id).style.display = 'flex';
     };
@@ -525,7 +513,6 @@
       }
     });
 
-    // Resolve Avatar URL (Uploaded file -> Fallback to generated avatar)
     async function getUploadedAvatarUrl(username) {
       if (uploadedAvatarDataUrl) {
         return uploadedAvatarDataUrl;
@@ -540,7 +527,6 @@
       return `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
     }
 
-    // Listen for incoming calls
     peer.on('call', async (call) => {
       if (isBanned) return;
       currentCall = call;
@@ -559,14 +545,12 @@
       }
     });
 
-    // Sync active rooms from Firebase Database
     const lobbyRef = ref(db, 'active_rooms');
     onValue(lobbyRef, (snapshot) => {
       cachedRooms = snapshot.val() || {};
       renderRooms();
     });
 
-    // Render Room Cards & Handle Category Filter
     function renderRooms() {
       const filter = document.getElementById('filter-niche').value;
       const container = document.getElementById('room-list');
@@ -620,7 +604,6 @@
       }
     }
 
-    // Attach Event Listeners
     document.getElementById('filter-niche').addEventListener('change', renderRooms);
     document.getElementById('btn-host-call').addEventListener('click', hostCall);
     document.getElementById('btn-leave-call').addEventListener('click', leaveRoom);
