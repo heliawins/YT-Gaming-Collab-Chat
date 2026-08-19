@@ -396,7 +396,7 @@
     const db = getDatabase(app);
 
     let uploadedAvatarDataUrl = "";
-    let userAge = 0; // Global variable to store verified age
+    let userAge = 0; 
 
     function readFileAsDataURL(file) {
       return new Promise((resolve) => {
@@ -415,14 +415,12 @@
       const discord = document.getElementById('modal-discord-tag').value.trim();
       const errorMsg = document.getElementById('setup-error');
 
-      // Check required fields
       if (!dobInput || !name) {
         errorMsg.innerText = 'Date of birth and Display Name are required to continue!';
         errorMsg.style.display = 'block';
         return;
       }
 
-      // Age verification calculation
       const dobDate = new Date(dobInput);
       const today = new Date();
       let age = today.getFullYear() - dobDate.getFullYear();
@@ -438,9 +436,8 @@
       }
 
       errorMsg.style.display = 'none';
-      userAge = age; // Store age so others can see it later
+      userAge = age; 
       
-      // Populate sidebar profile
       document.getElementById('username').value = name;
       document.getElementById('user-bio').value = desc || "Ready to game!";
       document.getElementById('discord-link').value = discord;
@@ -491,6 +488,7 @@
       return `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
     }
 
+    // HOST receives a call
     peer.on('call', async (call) => {
       if (isBanned) return;
       currentCall = call;
@@ -504,9 +502,7 @@
         document.getElementById('remote-avatar').style.opacity = "1";
       });
 
-      if (myRoomRef) {
-        remove(myRoomRef);
-      }
+      // FIX: We no longer delete myRoomRef here, so the room stays visible!
     });
 
     const lobbyRef = ref(db, 'active_rooms');
@@ -538,7 +534,6 @@
         const card = document.createElement('div');
         card.className = 'room-card';
         
-        // Add Age and Max Cap to the top section, and Discord & Bio below
         card.innerHTML = `
           <div class="room-header">
             <div style="display:flex; align-items:center; gap:12px;">
@@ -563,7 +558,7 @@
         if (room.discord && room.discord !== 'None') {
           const discordBtn = card.querySelector('.btn-discord-link');
           discordBtn.addEventListener('click', () => {
-            const url = room.discord.startsWith('http') ? room.discord : 'https://discord.com';
+            const url = room.discord.startsWith('http') ? room.discord : `https://discord.com/users/${room.discord}`;
             window.open(url, '_blank');
           });
         }
@@ -601,7 +596,6 @@
       await startMedia();
       currentHostIp = userIp;
 
-      // Send the User Age to Firebase so others can see it
       myRoomRef = ref(db, 'active_rooms/' + myPeerId);
       set(myRoomRef, {
         peerId: myPeerId,
@@ -610,7 +604,7 @@
         hostIp: userIp,
         discord: discord,
         bio: bio,
-        age: userAge, // Pushing age here
+        age: userAge,
         niche: niche,
         game: game,
         maxCapacity: maxCap
@@ -619,6 +613,9 @@
       document.getElementById('local-yt-name').innerText = ytName;
       document.getElementById('local-avatar').src = avatarSrc;
       document.getElementById('current-room-title').innerText = `Active Call: ${game} (${niche})`;
+      
+      // FIX: Show your own details in the stage header
+      document.getElementById('room-discord-display').innerText = `Your Bio: ${bio} | Discord: ${discord}`;
       
       const stage = document.getElementById('call-stage');
       stage.style.display = 'block';
@@ -643,6 +640,9 @@
       document.getElementById('remote-avatar').style.opacity = "1";
       document.getElementById('current-room-title').innerText = `Joined Call: ${room.game} (${room.niche})`;
 
+      // FIX: Push the host's details into the stage header when you join
+      document.getElementById('room-discord-display').innerHTML = `<strong>Host Bio:</strong> ${room.bio} | <strong>Discord:</strong> ${room.discord}`;
+
       currentCall = peer.call(room.peerId, localStream);
 
       if (currentCall) {
@@ -662,21 +662,11 @@
         alert("Security Error: Microphones are blocked on HTTP! You must use an HTTPS connection or localhost.");
         return;
       }
-
       try {
         localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         document.getElementById('local-video').srcObject = localStream;
       } catch (e) {
         console.error("Media error details:", e);
-        if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
-          alert("Permission Error: The browser or operating system blocked microphone access. Check your site permissions or Windows privacy settings.");
-        } else if (e.name === 'NotFoundError' || e.name === 'DevicesNotFoundError') {
-          alert("Hardware Error: No working microphone was detected on your system.");
-        } else if (e.name === 'NotReadableError' || e.name === 'TrackStartError') {
-          alert("Hardware Conflict: Your microphone is being used by another application (e.g. Discord, OBS, Zoom). Close them and try again.");
-        } else {
-          alert(`Microphone Error (${e.name}): ${e.message}`);
-        }
       }
     }
 
@@ -694,6 +684,13 @@
       document.getElementById('remote-yt-name').innerText = "Waiting for Partner...";
       document.getElementById('remote-yt-name').style.color = "var(--subtext)";
       document.getElementById('remote-avatar').style.opacity = "0.4";
+      document.getElementById('room-discord-display').innerHTML = '';
+
+      // FIX: Only delete the room from the database if the *host* leaves
+      if (myRoomRef) {
+        remove(myRoomRef);
+        myRoomRef = null;
+      }
     }
 
     function toggleAudio() {
