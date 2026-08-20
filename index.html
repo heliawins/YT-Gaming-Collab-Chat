@@ -469,6 +469,7 @@
 
     let localStream = null;
     let currentCall = null;
+    let currentConn = null; // NEW: Explicit Data Signal Connection
     let myRoomRef = null;
     let cachedRooms = {};
     let isMuted = false;
@@ -482,55 +483,67 @@
       return `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(username)}`;
     }
 
-    // --- CONNECTION TRACKING (NEW) ---
+    // --- CONNECTION TRACKING & DIRECT DATA SIGNALING ---
+    peer.on('connection', (conn) => {
+      // When a Guest connects to the Host's data channel
+      currentConn = conn;
+      
+      conn.on('data', (data) => {
+        if (data === 'LEAVE_CALL') {
+          processDisconnect();
+        }
+      });
+      conn.on('close', () => {
+        processDisconnect();
+      });
+    });
+
+    function processDisconnect() {
+      if (isHostUser) {
+        // If guest leaves, reset host UI back to "Waiting", KEEP room open
+        document.getElementById('remote-video').srcObject = null;
+        document.getElementById('remote-yt-name').innerText = "Waiting for Partner...";
+        document.getElementById('remote-yt-name').style.color = "var(--subtext)";
+        document.getElementById('remote-avatar').src = "https://api.dicebear.com/7.x/bottts/svg?seed=Waiting";
+        document.getElementById('remote-avatar').style.opacity = "0.4";
+        
+        if (currentCall) { currentCall.close(); currentCall = null; }
+        if (currentConn) { currentConn.close(); currentConn = null; }
+      } else {
+        // If host leaves, securely boot the guest
+        leaveRoom();
+        alert("The Host has ended the call or disconnected.");
+      }
+    }
+
+    // Fallback polling just in case the browser instantly crashes
     function handleConnectionLoss(call) {
       const checkInterval = setInterval(() => {
         if (currentCall !== call) {
           clearInterval(checkInterval);
           return;
         }
-        if (call.peerConnection) {
-          const state = call.peerConnection.iceConnectionState;
-          if (state === 'disconnected' || state === 'closed' || state === 'failed') {
-            clearInterval(checkInterval);
-            if (currentCall === call) processDisconnect();
-          }
+        if (!call.peerConnection) {
+          clearInterval(checkInterval);
+          if (currentCall === call) processDisconnect();
+          return;
+        }
+        const state = call.peerConnection.iceConnectionState;
+        if (state === 'disconnected' || state === 'closed' || state === 'failed') {
+          clearInterval(checkInterval);
+          if (currentCall === call) processDisconnect();
         }
       }, 1500);
-
-      call.on('close', () => {
-        if (currentCall === call) processDisconnect();
-      });
-    }
-
-    function processDisconnect() {
-      if (isHostUser) {
-        // If guest leaves, reset host UI back to "Waiting", but KEEP the room open!
-        document.getElementById('remote-video').srcObject = null;
-        document.getElementById('remote-yt-name').innerText = "Waiting for Partner...";
-        document.getElementById('remote-yt-name').style.color = "var(--subtext)";
-        document.getElementById('remote-avatar').src = "https://api.dicebear.com/7.x/bottts/svg?seed=Waiting";
-        document.getElementById('remote-avatar').style.opacity = "0.4";
-        if (currentCall) {
-          currentCall.close();
-          currentCall = null;
-        }
-      } else {
-        // If host leaves, force guest to leave the broken stage.
-        leaveRoom();
-        alert("The host has ended the call or disconnected.");
-      }
     }
     // ---------------------------------
 
-    // HOST receives a call
+    // HOST receives a video call
     peer.on('call', async (call) => {
       if (isBanned) return;
       currentCall = call;
       await startMedia();
       call.answer(localStream);
 
-      // Extract Guest's name and avatar if they sent it
       const guestName = call.metadata ? call.metadata.name : "Partner Connected!";
       const guestAvatar = call.metadata ? call.metadata.avatar : "https://api.dicebear.com/7.x/bottts/svg?seed=Waiting";
 
@@ -542,7 +555,7 @@
         document.getElementById('remote-avatar').style.opacity = "1";
       });
 
-      handleConnectionLoss(call); // Track if guest drops
+      handleConnectionLoss(call);
     });
 
     const lobbyRef = ref(db, 'active_rooms');
@@ -673,7 +686,14 @@
       document.getElementById('current-room-title').innerText = `Joined Call: ${room.game} (${room.niche})`;
       document.getElementById('room-discord-display').innerHTML = `<strong>Host Bio:</strong> ${room.bio} | <strong>Discord:</strong> ${room.discord}`;
 
-      // Send our avatar & name over to the host so they can see who joined
+      // Open a Direct Data Channel to listen for LEAVE_CALL signals
+      currentConn = peer.connect(room.peerId);
+      currentConn.on('data', (data) => {
+        if (data === 'LEAVE_CALL') processDisconnect();
+      });
+      currentConn.on('close', () => processDisconnect());
+
+      // Start the actual video/voice call
       currentCall = peer.call(room.peerId, localStream, {
         metadata: { name: ytName, avatar: avatarSrc }
       });
@@ -682,7 +702,7 @@
         currentCall.on('stream', remoteStream => {
           document.getElementById('remote-video').srcObject = remoteStream;
         });
-        handleConnectionLoss(currentCall); // Track if host drops
+        handleConnectionLoss(currentCall);
       }
 
       const stage = document.getElementById('call-stage');
@@ -705,31 +725,43 @@
     }
 
     function leaveRoom() {
-      if (currentCall) {
-        currentCall.close();
-        currentCall = null;
+      // 1. Send the signal explicitly before hanging up
+      if (currentConn && currentConn.open) {
+        currentConn.send('LEAVE_CALL');
       }
-      if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
-      }
-      isVideoOn = false;
-      document.getElementById('btn-video').innerText = 'Camera On';
-      document.getElementById('call-stage').style.display = 'none';
-      document.getElementById('local-video').srcObject = null;
-      document.getElementById('remote-video').srcObject = null;
-      document.getElementById('remote-yt-name').innerText = "Waiting for Partner...";
-      document.getElementById('remote-yt-name').style.color = "var(--subtext)";
-      document.getElementById('remote-avatar').src = "https://api.dicebear.com/7.x/bottts/svg?seed=Waiting";
-      document.getElementById('remote-avatar').style.opacity = "0.4";
-      document.getElementById('room-discord-display').innerHTML = '';
 
-      // Only delete the room if the HOST clicks leave
-      if (isHostUser && myRoomRef) {
-        remove(myRoomRef);
-        myRoomRef = null;
-      }
-      isHostUser = false; // Reset role state
+      // 2. Wrap the cleanup in a slight delay so the message actually sends
+      setTimeout(() => {
+        if (currentCall) {
+          currentCall.close();
+          currentCall = null;
+        }
+        if (currentConn) {
+          currentConn.close();
+          currentConn = null;
+        }
+        if (localStream) {
+          localStream.getTracks().forEach(track => track.stop());
+          localStream = null;
+        }
+        isVideoOn = false;
+        document.getElementById('btn-video').innerText = 'Camera On';
+        document.getElementById('call-stage').style.display = 'none';
+        document.getElementById('local-video').srcObject = null;
+        document.getElementById('remote-video').srcObject = null;
+        document.getElementById('remote-yt-name').innerText = "Waiting for Partner...";
+        document.getElementById('remote-yt-name').style.color = "var(--subtext)";
+        document.getElementById('remote-avatar').src = "https://api.dicebear.com/7.x/bottts/svg?seed=Waiting";
+        document.getElementById('remote-avatar').style.opacity = "0.4";
+        document.getElementById('room-discord-display').innerHTML = '';
+
+        // Only delete the room if the HOST clicks leave
+        if (isHostUser && myRoomRef) {
+          remove(myRoomRef);
+          myRoomRef = null;
+        }
+        isHostUser = false; // Reset role state
+      }, 150);
     }
 
     function toggleAudio() {
